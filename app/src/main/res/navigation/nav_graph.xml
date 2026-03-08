@@ -1,0 +1,161 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/nav_graph"
+    app:startDestination="@id/homeFragment">
+
+    <!-- Global Actions -->
+    <action
+        android:id="@+id/action_global_homeFragment"
+        app:destination="@id/homeFragment"
+        app:popUpTo="@id/homeFragment"
+        app:popUpToInclusive="true" />
+
+    <!-- Home -->
+    <fragment
+        android:id="@+id/homeFragment"
+        android:name="com.marketapp.ui.home.HomeFragment"
+        android:label="Home"
+        tools:layout="@layout/fragment_home">
+        <deepLink app:uri="marketapp://home" />
+        <action
+            android:id="@+id/action_home_to_product"
+            app:destination="@id/productDetailFragment"
+            app:enterAnim="@anim/slide_in_right"
+            app:exitAnim="@anim/slide_out_left"
+            app:popEnterAnim="@anim/slide_in_left"
+            app:popExitAnim="@anim/slide_out_right" />
+        <action
+            android:id="@+id/action_home_to_category"
+            app:destination="@id/categoryFragment" />
+    </fragment>
+
+    <!-- Search -->
+    <fragment
+        android:id="@+id/searchFragment"
+        android:name="com.marketapp.ui.home.SearchFragment"
+        android:label="Search"
+        tools:layout="@layout/fragment_search">
+        <deepLink app:uri="marketapp://search" />
+        <action
+            android:id="@+id/action_search_to_product"
+            app:destination="@id/productDetailFragment"
+            app:enterAnim="@anim/slide_in_right"
+            app:exitAnim="@anim/slide_out_left"
+            app:popEnterAnim="@anim/slide_in_left"
+            app:popExitAnim="@anim/slide_out_right" />
+    </fragment>
+
+    <!-- Product Detail -->
+    <fragment
+        android:id="@+id/productDetailFragment"
+        android:name="com.marketapp.ui.product.ProductDetailFragment"
+        android:label="Product"
+        tools:layout="@layout/fragment_product_detail">
+        <argument
+            android:name="productId"
+            app:argType="string" />
+        <!-- Deep link: marketapp://product/{productId}  (productId always treated as string;
+             push notifications may send non-numeric IDs so integer type would crash) -->
+        <deepLink
+            android:id="@+id/deepLink_product"
+            app:uri="marketapp://product/{productId}" />
+        <action
+            android:id="@+id/action_product_to_cart"
+            app:destination="@id/cartFragment" />
+    </fragment>
+
+    <!-- Category -->
+    <fragment
+        android:id="@+id/categoryFragment"
+        android:name="com.marketapp.ui.home.CategoryFragment"
+        android:label="Category"
+        tools:layout="@layout/fragment_category">
+        <argument
+            android:name="category"
+            app:argType="string" />
+        <action
+            android:id="@+id/action_category_to_product"
+            app:destination="@id/productDetailFragment"
+            app:enterAnim="@anim/slide_in_right"
+            app:exitAnim="@anim/slide_out_left"
+            app:popEnterAnim="@anim/slide_in_left"
+            app:popExitAnim="@anim/slide_out_right" />
+    </fragment>
+
+    <!-- Cart -->
+    <fragment
+        android:id="@+id/cartFragment"
+        android:name="com.marketapp.ui.cart.CartFragment"
+        android:label="Cart"
+        tools:layout="@layout/fragment_cart">
+        <deepLink app:uri="marketapp://cart" />
+        <action
+            android:id="@+id/action_cart_to_checkout"
+            app:destination="@id/checkoutFragment"
+            app:enterAnim="@anim/slide_in_right"
+            app:exitAnim="@anim/slide_out_left"
+            app:popEnterAnim="@anim/slide_in_left"
+            app:popExitAnim="@anim/slide_out_right" />
+    </fragment>
+
+    <!-- Checkout Step 1: Shipping -->
+    <fragment
+        android:id="@+id/checkoutFragment"
+        android:name="com.marketapp.ui.checkout.CheckoutFragment"
+        android:label="Shipping"
+        tools:layout="@layout/fragment_checkout">
+        <action
+            android:id="@+id/action_checkout_to_payment"
+            app:destination="@id/checkoutPaymentFragment"
+            app:enterAnim="@anim/slide_in_right"
+            app:exitAnim="@anim/slide_out_left"
+            app:popEnterAnim="@anim/slide_in_left"
+            app:popExitAnim="@anim/slide_out_right" />
+    </fragment>
+
+    <!-- Checkout Step 2: Payment -->
+    <fragment
+        android:id="@+id/checkoutPaymentFragment"
+        android:name="com.marketapp.ui.checkout.PaymentFragment"
+        android:label="Payment"
+        tools:layout="@layout/fragment_checkout_payment">
+        <action
+            android:id="@+id/action_payment_to_confirmation"
+            app:destination="@id/orderConfirmationFragment"
+            app:popUpTo="@id/cartFragment"
+            app:popUpToInclusive="true" />
+    </fragment>
+
+    <!-- Order Confirmation -->
+    <fragment
+        android:id="@+id/orderConfirmationFragment"
+        android:name="com.marketapp.ui.checkout.OrderConfirmationFragment"
+        android:label="Order Confirmed"
+        tools:layout="@layout/fragment_order_confirmation">
+        <argument
+            android:name="orderId"
+            app:argType="string" />
+    </fragment>
+
+    <!-- Profile -->
+    <fragment
+        android:id="@+id/profileFragment"
+        android:name="com.marketapp.ui.profile.ProfileFragment"
+        android:label="Profile"
+        tools:layout="@layout/fragment_profile">
+        <deepLink app:uri="marketapp://profile" />
+        <action
+            android:id="@+id/action_profile_to_debug"
+            app:destination="@id/debugMenuFragment" />
+    </fragment>
+
+    <!-- Developer Options (debug builds only) -->
+    <fragment
+        android:id="@+id/debugMenuFragment"
+        android:name="com.marketapp.ui.debug.DebugMenuFragment"
+        android:label="Developer Options"
+        tools:layout="@layout/fragment_debug_menu" />
+
+</navigation>

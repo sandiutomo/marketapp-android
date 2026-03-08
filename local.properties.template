@@ -1,0 +1,26 @@
+## local.properties — NEVER commit this file to version control
+## Add to .gitignore: local.properties
+
+sdk.dir=/Users/YOUR_USERNAME/Library/Android/sdk
+
+## ── MARTECH KEYS ────────────────────────────────────────────────────────────
+## Firebase: keys come from google-services.json (no entry needed here)
+
+## PHASE 2 — Mixpanel
+# MIXPANEL_TOKEN=your_token_here
+
+## PHASE 3 — Braze
+# BRAZE_API_KEY=your_key_here
+# BRAZE_CUSTOM_ENDPOINT=sdk.iad-01.braze.com
+
+## PHASE 4 — AppsFlyer
+# APPSFLYER_DEV_KEY=your_key_here
+
+## PHASE 5 — PostHog
+# POSTHOG_API_KEY=phc_your_key_here
+
+## PHASE 6 — Amplitude
+# AMPLITUDE_API_KEY=your_key_here
+
+## PHASE 7 — Segment
+# SEGMENT_WRITE_KEY=your_key_here

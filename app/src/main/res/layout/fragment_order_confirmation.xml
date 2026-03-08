@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:gravity="center"
+    android:padding="@dimen/spacing_40"
+    android:background="@color/background">
+
+    <ImageView
+        android:layout_width="80dp"
+        android:layout_height="80dp"
+        android:src="@drawable/ic_check_circle"
+        android:contentDescription="Order confirmed"
+        android:tint="@color/success" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/spacing_24"
+        android:text="@string/order_placed_title"
+        android:textAppearance="@style/TextAppearance.MarketApp.Title1"
+        android:textColor="@color/text_primary"
+        android:gravity="center" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/spacing_12"
+        android:text="@string/order_placed_sub"
+        android:textAppearance="@style/TextAppearance.MarketApp.Body"
+        android:textColor="@color/text_secondary"
+        android:gravity="center"
+        android:lineSpacingExtra="4dp" />
+
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/spacing_20"
+        android:orientation="horizontal">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/order_id_label"
+            android:textAppearance="@style/TextAppearance.MarketApp.Footnote"
+            android:textColor="@color/text_tertiary" />
+
+        <TextView
+            android:id="@+id/tv_order_id"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="@dimen/spacing_4"
+            android:textAppearance="@style/TextAppearance.MarketApp.Footnote"
+            android:textColor="@color/primary" />
+
+    </LinearLayout>
+
+    <Button
+        android:id="@+id/btn_continue_shopping"
+        style="@style/Widget.MarketApp.Button.Primary"
+        android:layout_width="match_parent"
+        android:layout_height="@dimen/button_height"
+        android:layout_marginTop="@dimen/spacing_40"
+        android:text="Continue Shopping" />
+
+</LinearLayout>

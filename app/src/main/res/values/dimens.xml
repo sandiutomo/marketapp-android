@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Spacing — 4pt grid like iOS -->
+    <dimen name="spacing_2">2dp</dimen>
+    <dimen name="spacing_4">4dp</dimen>
+    <dimen name="spacing_8">8dp</dimen>
+    <dimen name="spacing_12">12dp</dimen>
+    <dimen name="spacing_16">16dp</dimen>
+    <dimen name="spacing_20">20dp</dimen>
+    <dimen name="spacing_24">24dp</dimen>
+    <dimen name="spacing_32">32dp</dimen>
+    <dimen name="spacing_40">40dp</dimen>
+    <dimen name="spacing_48">48dp</dimen>
+
+    <!-- Screen horizontal padding -->
+    <dimen name="screen_padding">20dp</dimen>
+
+    <!-- Cards -->
+    <dimen name="card_radius">12dp</dimen>
+    <dimen name="card_radius_large">16dp</dimen>
+    <dimen name="card_elevation">0dp</dimen>
+
+    <!-- Product card -->
+    <dimen name="product_card_image_height">200dp</dimen>
+    <dimen name="product_card_grid_image_height">160dp</dimen>
+
+    <!-- Bottom nav -->
+    <dimen name="bottom_nav_height">80dp</dimen>
+
+    <!-- Button -->
+    <dimen name="button_height">52dp</dimen>
+    <dimen name="button_radius">12dp</dimen>
+</resources>

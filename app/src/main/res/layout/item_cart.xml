@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.card.MaterialCardView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    style="@style/Widget.MarketApp.Card"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginHorizontal="@dimen/screen_padding"
+    android:layout_marginBottom="@dimen/spacing_8"
+    app:cardBackgroundColor="@color/surface"
+    app:cardCornerRadius="@dimen/card_radius"
+    app:cardElevation="0dp"
+    app:strokeWidth="0dp">
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:padding="@dimen/spacing_16">
+
+        <ImageView
+            android:id="@+id/img_product"
+            android:layout_width="80dp"
+            android:layout_height="80dp"
+            android:background="@color/background"
+            android:scaleType="centerInside"
+            android:padding="8dp"
+            android:contentDescription="Product image"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <TextView
+            android:id="@+id/tv_title"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="@dimen/spacing_12"
+            android:maxLines="2"
+            android:ellipsize="end"
+            android:textAppearance="@style/TextAppearance.MarketApp.Subheadline"
+            android:textColor="@color/text_primary"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toEndOf="@id/img_product"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <TextView
+            android:id="@+id/tv_price"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="@dimen/spacing_12"
+            android:layout_marginTop="@dimen/spacing_4"
+            android:layout_marginEnd="@dimen/spacing_8"
+            android:maxLines="1"
+            android:ellipsize="end"
+            android:textAppearance="@style/TextAppearance.MarketApp.Headline"
+            android:textColor="@color/text_primary"
+            app:layout_constraintStart_toEndOf="@id/img_product"
+            app:layout_constraintEnd_toStartOf="@id/qty_stepper"
+            app:layout_constraintTop_toBottomOf="@id/tv_title" />
+
+        <!-- Qty stepper -->
+        <LinearLayout
+            android:id="@+id/qty_stepper"
+            android:layout_width="wrap_content"
+            android:layout_height="36dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:background="@drawable/bg_stepper"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/tv_title">
+
+            <ImageButton
+                android:id="@+id/btn_decrease"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:src="@drawable/ic_minus"
+                android:contentDescription="Decrease quantity" />
+
+            <TextView
+                android:id="@+id/tv_quantity"
+                android:layout_width="32dp"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:textAppearance="@style/TextAppearance.MarketApp.Headline"
+                android:textColor="@color/text_primary" />
+
+            <ImageButton
+                android:id="@+id/btn_increase"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:src="@drawable/ic_plus"
+                android:contentDescription="Increase quantity" />
+
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/btn_remove"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="@dimen/spacing_12"
+            android:layout_marginEnd="@dimen/spacing_8"
+            android:text="@string/remove"
+            android:textColor="@color/error"
+            android:textAppearance="@style/TextAppearance.MarketApp.Footnote"
+            android:padding="@dimen/spacing_4"
+            android:clickable="true"
+            android:focusable="true"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toEndOf="@id/img_product"
+            app:layout_constraintEnd_toStartOf="@id/qty_stepper"
+            app:layout_constraintTop_toBottomOf="@id/tv_price" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+</com.google.android.material.card.MaterialCardView>

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Downloadable font: Inter Regular (replaces SF Pro which is Apple-proprietary
+    and cannot be distributed in Android APKs).
+
+    To use a local TTF instead:
+      1. Download Inter-Regular.ttf from https://fonts.google.com/specimen/Inter
+      2. Copy it to res/font/ as sf_pro.ttf
+      3. Delete this file
+-->
+<font-family xmlns:app="http://schemas.android.com/apk/res-auto"
+    app:fontProviderAuthority="com.google.android.gms.fonts"
+    app:fontProviderPackage="com.google.android.gms"
+    app:fontProviderQuery="Inter"
+    app:fontProviderCerts="@array/com_google_android_gms_fonts_certs" />

@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Primary -->
+    <color name="primary">#007AFF</color>
+    <color name="primary_dark">#0056CC</color>
+    <color name="primary_light">#E8F3FF</color>
+
+    <!-- Neutrals — iOS-style system grays -->
+    <color name="white">#FFFFFF</color>
+    <color name="background">#F2F2F7</color>
+    <color name="surface">#FFFFFF</color>
+    <color name="surface_elevated">#FFFFFF</color>
+
+    <color name="gray_1">#8E8E93</color>  <!-- Secondary label -->
+    <color name="gray_2">#AEAEB2</color>  <!-- Tertiary label -->
+    <color name="gray_3">#C7C7CC</color>  <!-- Quaternary label -->
+    <color name="gray_4">#D1D1D6</color>  <!-- Separator -->
+    <color name="gray_5">#E5E5EA</color>  <!-- System fill -->
+    <color name="gray_6">#F2F2F7</color>  <!-- Secondary background -->
+
+    <!-- Text -->
+    <color name="text_primary">#1C1C1E</color>
+    <color name="text_secondary">#3C3C43</color>
+    <color name="text_tertiary">#8E8E93</color>
+
+    <!-- Semantic -->
+    <color name="success">#34C759</color>
+    <color name="warning">#FF9500</color>
+    <color name="error">#FF3B30</color>
+    <color name="badge">#FF3B30</color>
+
+    <!-- Status bar / Nav -->
+    <color name="status_bar">#F2F2F7</color>
+    <color name="nav_bar">#F2F2F7</color>
+
+    <!-- Bottom Nav -->
+    <color name="bottom_nav_selected">#007AFF</color>
+    <color name="bottom_nav_unselected">#8E8E93</color>
+</resources>

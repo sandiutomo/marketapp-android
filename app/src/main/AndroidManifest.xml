@@ -1,0 +1,180 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
+    <!-- Braze Geofences: ACCESS_FINE_LOCATION required; ACCESS_BACKGROUND_LOCATION
+         required for Android 10+ (API 29+) so geofences fire when app is in background.
+         Both must be requested at runtime before calling requestLocationInitialization(). -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
+
+    <!-- Android 11+ (API 30+): package visibility for the Facebook app.
+         Required for the Facebook SDK to detect whether the native Facebook app
+         is installed on the device (used for optimized login flow and share sheets). -->
+    <queries>
+        <provider android:authorities="com.facebook.katana.provider.PlatformProvider" />
+        <provider android:authorities="com.facebook.orca.provider.PlatformProvider" />
+    </queries>
+
+    <application
+        android:name=".MarketApplication"
+        android:allowBackup="false"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="@xml/backup_rules"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.MarketApp.Splash"
+        android:networkSecurityConfig="@xml/network_security_config"
+        tools:targetApi="31"
+        tools:replace="android:allowBackup,android:dataExtractionRules,android:fullBackupContent">
+
+        <!-- Disable automatic Firebase screen reporting -->
+        <meta-data
+            android:name="google_analytics_automatic_screen_reporting_enabled"
+            android:value="false" />
+
+        <!-- Google Consent Mode v2 — all signals denied by default until the user
+             accepts via ConsentBottomSheet. Updated at runtime via
+             FirebaseTracker.setAnalyticsConsent() → Firebase.analytics.setConsent(). -->
+        <meta-data
+            android:name="google_analytics_default_allow_analytics_storage"
+            android:value="false" />
+        <meta-data
+            android:name="google_analytics_default_allow_ad_storage"
+            android:value="false" />
+        <meta-data
+            android:name="google_analytics_default_allow_ad_user_data"
+            android:value="false" />
+        <meta-data
+            android:name="google_analytics_default_allow_ad_personalization_signals"
+            android:value="false" />
+
+        <!-- ── Facebook SDK ────────────────────────────────────────────────────── -->
+        <!-- FacebookInitProvider (ContentProvider) runs at process start and calls
+             sdkInitialize() regardless of AutoInitEnabled. Providing both credentials
+             here lets it fully initialize before FacebookTracker.initialize() runs.
+             Client Token injected via Gradle manifestPlaceholders from local.properties. -->
+        <meta-data
+            android:name="com.facebook.sdk.ApplicationId"
+            android:value="@string/facebook_app_id" />
+        <meta-data
+            android:name="com.facebook.sdk.ClientToken"
+            android:value="${facebook_client_token}" />
+        <!-- Disable automatic app-event logging (GDPR compliance). Events are sent
+             explicitly through FacebookTracker. -->
+        <meta-data
+            android:name="com.facebook.sdk.AutoLogAppEventsEnabled"
+            android:value="false" />
+        <!-- Disable advertiser ID collection; enabled only when user gives consent. -->
+        <meta-data
+            android:name="com.facebook.sdk.AdvertiserIDCollectionEnabled"
+            android:value="false" />
+
+        <activity android:name="com.facebook.FacebookActivity"
+            android:configChanges=
+                "keyboard|keyboardHidden|screenLayout|screenSize|orientation"
+            android:label="@string/app_name" />
+        <activity
+            android:name="com.facebook.CustomTabActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="@string/fb_login_protocol_scheme" />
+            </intent-filter>
+        </activity>
+        <!-- ─────────────────────────────────────────────────────────────────────── -->
+
+        <!-- Mixpanel Debug Verbose -->
+        <meta-data
+            android:name="com.mixpanel.android.MPConfig.EnableDebugLogging"
+            android:value="true" />
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTop"
+            android:windowSoftInputMode="adjustResize"
+            android:screenOrientation="fullSensor"
+            tools:ignore="LockedOrientationActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+
+            <!-- HTTPS App Links (native Android App Links via assetlinks.json).
+                 Replace YOUR_DOMAIN with your real domain, then host this file at:
+                   https://YOUR_DOMAIN/.well-known/assetlinks.json
+                 Contents:
+                   [{"relation":["delegate_permission/common.handle_all_urls"],
+                     "target":{"namespace":"android_app","package_name":"com.marketapp",
+                               "sha256_cert_fingerprints":["YOUR_SHA256_FINGERPRINT"]}}]
+                 Get fingerprint: keytool -list -v -keystore your.jks | grep SHA256 -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="YOUR_DOMAIN" />
+            </intent-filter>
+
+            <!-- AppsFlyer OneLink — HTTPS deep links. -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:host="marketapp.onelink.me" android:scheme="https" />
+            </intent-filter>
+
+            <!-- Custom URI scheme — works immediately without a web server.
+                 Example: marketapp://profile?utm_source=email&utm_medium=newsletter&utm_campaign=winback
+                 Note: autoVerify must NOT be set for custom schemes — it only applies to HTTPS App Links.
+                       Setting it here causes Android 12+ to attempt verification against a non-existent
+                       domain and can prevent the app from being set as the default handler. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="marketapp" />
+            </intent-filter>
+        </activity>
+
+        <!-- FCM Service -->
+        <service
+            android:name=".MarketFirebaseMessagingService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
+
+        <!-- ── Braze ──────────────────────────────────────────────────────────── -->
+        <!-- Required for HTML/WebView-based in-app messages -->
+        <activity
+            android:name="com.braze.ui.BrazeWebViewActivity"
+            android:exported="false" />
+        <!-- Content Cards (Banners) built-in activity — launch via intent when needed -->
+        <activity
+            android:name="com.braze.ui.contentcards.BrazeContentCardsActivity"
+            android:exported="false" />
+
+        <!-- Geofences: re-registers geofences after device reboot so they survive power cycles.
+             Listens for BOOT_COMPLETED (permission declared above). -->
+        <receiver
+            android:name="com.braze.BrazeBootReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
+        <!-- ─────────────────────────────────────────────────────────────────────── -->
+
+    </application>
+
+</manifest>

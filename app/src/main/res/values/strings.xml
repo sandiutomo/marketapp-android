@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Market</string>
+
+    <!-- Facebook SDK -->
+    <string name="facebook_app_id">1673001650723806</string>
+    <string name="facebook_client_token">YOUR_ACTUAL_CLIENT_TOKEN</string>
+    <string name="fb_login_protocol_scheme">fb1673001650723806</string>
+
+    <!-- Bottom Nav -->
+    <string name="nav_home">Home</string>
+    <string name="nav_search">Search</string>
+    <string name="nav_cart">Cart</string>
+    <string name="nav_profile">Profile</string>
+
+    <!-- Home -->
+    <string name="good_morning">Good Morning</string>
+    <string name="featured">Featured</string>
+    <string name="categories">Categories</string>
+    <string name="trending">Trending Now</string>
+    <string name="see_all">See All</string>
+
+    <!-- Product -->
+    <string name="add_to_cart">Add to Cart</string>
+    <string name="buy_now">Buy Now</string>
+    <string name="added_to_cart">Added to Cart</string>
+    <string name="in_stock">In Stock</string>
+    <string name="review_count">%d ratings</string>
+    <string name="product_description">Description</string>
+
+    <!-- Cart -->
+    <string name="cart_title">Cart</string>
+    <string name="cart_empty">Your cart is empty</string>
+    <string name="cart_empty_sub">Find something you love and add it here</string>
+    <string name="cart_subtotal">Subtotal</string>
+    <string name="cart_checkout">Checkout</string>
+    <string name="cart_total">Total</string>
+    <string name="remove">Remove</string>
+
+    <!-- Checkout -->
+    <string name="checkout_title">Checkout</string>
+    <string name="order_summary">Order Summary</string>
+    <string name="shipping_address">Shipping Address</string>
+    <string name="payment_method">Payment Method</string>
+    <string name="place_order">Place Order</string>
+    <string name="order_placed_title">Order Placed!</string>
+    <string name="order_placed_sub">Your order has been confirmed.\nWe\'ll send you an update when it ships.</string>
+    <string name="order_id_label">Order ID:</string>
+
+    <!-- Search -->
+    <string name="search_hint">Search products…</string>
+    <string name="search_results">Results for "%s"</string>
+    <string name="no_results">No results found</string>
+    <string name="no_results_sub">Try a different search term</string>
+
+    <!-- Profile -->
+    <string name="profile_title">Profile</string>
+    <string name="guest_user">Guest User</string>
+    <string name="tap_to_sign_in">Tap to sign in</string>
+    <string name="sign_in">Sign In</string>
+    <string name="sign_out">Sign Out</string>
+    <string name="orders">Orders</string>
+    <string name="wishlist">Wishlist</string>
+    <string name="addresses">Addresses</string>
+    <string name="settings">Settings</string>
+    <string name="notifications">Notifications</string>
+    <string name="app_version">Version %s</string>
+
+    <!-- Login bottom sheet -->
+    <string name="create_account">Create Account</string>
+    <string name="register">Register</string>
+    <string name="sign_in_with_google">Continue with Google</string>
+    <string name="or">or</string>
+    <string name="hint_name">Full name</string>
+    <string name="hint_email">Email address</string>
+    <string name="hint_password">Password</string>
+    <string name="no_account">Don\'t have an account? Register</string>
+    <string name="already_have_account">Already have one? Sign in</string>
+    <string name="default_web_client_id">940226439607-addfdth8h7h7r7cmamobl999n8vg584k.apps.googleusercontent.com</string>
+
+    <!-- Consent bottom sheet -->
+    <string name="consent_title">Before you start</string>
+    <string name="consent_subtitle">Help us give you the best experience.\nYou can change these anytime in Settings.</string>
+    <string name="consent_notifications_title">Push Notifications</string>
+    <string name="consent_notifications_desc">Order updates, deals &amp; personalized offers</string>
+    <string name="consent_analytics_title">Analytics &amp; Personalization</string>
+    <string name="consent_analytics_desc">Helps us improve the app and show relevant content</string>
+    <string name="consent_privacy_note">By continuing you agree to our Privacy Policy</string>
+    <string name="consent_continue">Continue</string>
+
+    <!-- Errors -->
+    <string name="error_network">No internet connection</string>
+    <string name="error_generic">Something went wrong. Please try again.</string>
+    <string name="retry">Retry</string>
+
+    <!-- Debug -->
+    <string name="developer_options">Developer Options</string>
+</resources>
