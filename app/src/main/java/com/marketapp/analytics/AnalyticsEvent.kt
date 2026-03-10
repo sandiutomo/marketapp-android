@@ -219,9 +219,11 @@ sealed class AnalyticsEvent(val name: String) {
     // ── QA / Testing (DEBUG builds only) ──────────────────────────────────────
     // Fire these from the profile debug panel to trigger action-based campaigns
     // in Braze (Action-Based Delivery) and OneSignal (In-App triggers).
-    object TriggerPushTest       : AnalyticsEvent("trigger_for_pushnotif")
-    object TriggerBannerTest     : AnalyticsEvent("trigger_for_banner")
-    object TriggerExperimentTest : AnalyticsEvent("trigger_for_experiment")
+    object TriggerPushTest        : AnalyticsEvent("trigger_for_pushnotif")
+    object TriggerBannerTest      : AnalyticsEvent("trigger_for_banner")
+    object TriggerInAppTest       : AnalyticsEvent("trigger_for_inapp")
+    object TriggerContentCardTest : AnalyticsEvent("trigger_for_content_card")
+    object TriggerExperimentTest  : AnalyticsEvent("trigger_for_experiment")
 
     /**
      * Flat property map for PostHog, Clarity, and generic trackers.
@@ -388,6 +390,8 @@ sealed class AnalyticsEvent(val name: String) {
 
         is TriggerPushTest,
         is TriggerBannerTest,
+        is TriggerInAppTest,
+        is TriggerContentCardTest,
         is TriggerExperimentTest -> emptyMap()
     }
 }

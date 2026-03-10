@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="@color/background">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="@dimen/screen_padding"
+        android:layout_marginTop="@dimen/spacing_24"
+        android:layout_marginBottom="@dimen/spacing_16"
+        android:text="Content Cards"
+        android:textAppearance="@style/TextAppearance.MarketApp.Title1"
+        android:textColor="@color/text_primary" />
+
+    <ProgressBar
+        android:id="@+id/progress"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginVertical="@dimen/spacing_32"
+        android:indeterminateTint="@color/gray_3"
+        android:visibility="visible" />
+
+    <TextView
+        android:id="@+id/tv_empty"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginVertical="@dimen/spacing_32"
+        android:text="No content cards yet.\nFire the trigger and pull to refresh."
+        android:gravity="center"
+        android:textAppearance="@style/TextAppearance.MarketApp.Footnote"
+        android:textColor="@color/text_tertiary"
+        android:visibility="gone" />
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/recycler_cards"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingHorizontal="@dimen/screen_padding"
+        android:paddingBottom="@dimen/spacing_32"
+        android:clipToPadding="false"
+        android:visibility="gone" />
+
+</LinearLayout>

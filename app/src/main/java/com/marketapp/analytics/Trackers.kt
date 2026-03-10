@@ -54,7 +54,7 @@ class FacebookTracker @Inject constructor(
             FacebookSdk.addLoggingBehavior(LoggingBehavior.APP_EVENTS)
             FacebookSdk.addLoggingBehavior(LoggingBehavior.DEVELOPER_ERRORS)
             FacebookSdk.setAdvertiserIDCollectionEnabled(true)
-            Log.d("FB_DEBUG", "Facebook SDK ready. App ID: ${FacebookSdk.getApplicationId()}")
+            Log.d("Analytics", "[Facebook] SDK ready. App ID: ${FacebookSdk.getApplicationId()}")
         }
         logger = AppEventsLogger.newLogger(context)
         AppEventsLogger.activateApp(context as android.app.Application)
@@ -621,7 +621,7 @@ class PostHogTracker @Inject constructor(
             SessionReplayLogger.record("PostHog", sessionRecorded, debugPct = 40, prodPct = 40)
             sessionReplay      = sessionRecorded
             sessionReplayConfig.apply {
-                screenshot        = false // wireframe mode — faster, lower bandwidth, no risk of capturing unmasked image pixels
+                screenshot        = true  // screenshot mode — full-fidelity pixel capture
                 maskAllTextInputs = true  // all EditText / TextInputEditText masked (PII)
                 maskAllImages     = false // product images intentional in e-commerce; mask sensitive ones individually via maskView()
                 captureLogcat     = BuildConfig.DEBUG
@@ -638,14 +638,14 @@ class PostHogTracker @Inject constructor(
     override fun track(event: AnalyticsEvent) {
         when (event) {
             is AnalyticsEvent.ScreenView -> {
-                if (BuildConfig.DEBUG) Log.d("PostHog", "screen: ${event.screenName} (${event.screenClass})")
+                if (BuildConfig.DEBUG) Log.d("Analytics", "[PostHog] screen: ${event.screenName} (${event.screenClass})")
                 PostHog.screen(
                     screenTitle = event.screenName,
                     properties  = mapOf("screen_class" to event.screenClass)
                 )
             }
             else -> {
-                if (BuildConfig.DEBUG) Log.d("PostHog", "capture: ${event.name}")
+                if (BuildConfig.DEBUG) Log.d("Analytics", "[PostHog] capture: ${event.name}")
                 PostHog.capture(event = event.name, properties = event.toProperties())
             }
         }
@@ -871,18 +871,18 @@ class AppsFlyerTracker @Inject constructor(
                 val content  = data["utm_content"]?.toString()
                 val deepLink = data["deep_link_value"]?.toString()
                 if (BuildConfig.DEBUG) {
-                    Log.d("AF_EDDL", "[EDDL] source=$source medium=$medium campaign=$campaign deepLink=$deepLink")
+                    Log.d("Analytics", "[AF/EDDL] source=$source medium=$medium campaign=$campaign deepLink=$deepLink")
                 }
                 onDeepLink?.invoke(source, medium, campaign, term, content, deepLink)
             }
             override fun onConversionDataFail(error: String?) {
-                Log.w("AF_EDDL", "Conversion data unavailable: $error")
+                Log.w("Analytics", "[AF/EDDL] Conversion data unavailable: $error")
             }
             override fun onAppOpenAttribution(data: Map<String, String>?) {
                 // Re-engagement is handled by UDL (subscribeForDeepLink) below.
             }
             override fun onAttributionFailure(error: String?) {
-                Log.w("AF_EDDL", "Attribution failure: $error")
+                Log.w("Analytics", "[AF/EDDL] Attribution failure: $error")
             }
         })
 
@@ -903,12 +903,12 @@ class AppsFlyerTracker @Inject constructor(
                     val content  = dl.getStringValue("utm_content")
                     val url      = dl.getStringValue("af_dp")        ?: dl.getStringValue("deep_link_value")
                     if (BuildConfig.DEBUG) {
-                        Log.d("AF_UDL", "[UDL] source=$source medium=$medium campaign=$campaign deepLink=$url")
+                        Log.d("Analytics", "[AF/UDL] source=$source medium=$medium campaign=$campaign deepLink=$url")
                     }
                     onDeepLink?.invoke(source, medium, campaign, term, content, url)
                 }
                 DeepLinkResult.Status.ERROR ->
-                    Log.w("AF_UDL", "Deep link error: ${result.error}")
+                    Log.w("Analytics", "[AF/UDL] Deep link error: ${result.error}")
                 else -> Unit // NOT_FOUND = normal app open, no action needed
             }
         }, 3000L)
@@ -1066,11 +1066,37 @@ class AppsFlyerTracker @Inject constructor(
         AppsFlyerLib.getInstance().logEvent(context, eventName, params)
     }
 
+    // ── Braze integration ─────────────────────────────────────────────────────
+
+    /**
+     * Called after ALL trackers have initialized, so Braze is guaranteed ready.
+     * Sets brazeCustomerId in AF additional data so every AF postback carries the
+     * Braze device ID — required for the AppsFlyer ↔ Braze partner connection.
+     */
+    override fun onSessionStart(sessionId: String) {
+        // setAdditionalData replaces all previous data on each call — merge everything
+        // into one map so Braze and Amplitude values coexist in the same postback.
+        val data = mutableMapOf<String, Any>(
+            "brazeCustomerId" to com.braze.Braze.getInstance(context).deviceId
+        )
+        AmplitudeTracker.deviceId?.let  { data["AmplitudeDeviceId"]  = it }
+        AmplitudeTracker.sessionId
+            .takeIf { it > 0 }?.let    { data["AmplitudeSessionId"] = it.toString() }
+        AppsFlyerLib.getInstance().setAdditionalData(data)
+    }
+
     override fun identify(userId: String, properties: UserProperties) {
+        // setCustomerUserId automatically triggers AF start when waitForCustomerUserId(true) is set.
         AppsFlyerLib.getInstance().setCustomerUserId(userId)
+
+        // Braze Audiences: pass the Braze external ID so AF can sync cohorts
+        // back to Braze without relying on device-ID matching alone.
+        AppsFlyerLib.getInstance().setPartnerData(
+            "braze_inc",
+            mapOf("external_id" to userId)
+        )
+
         properties.currency?.let { AppsFlyerLib.getInstance().setCurrencyCode(it) }
-        // PBA: SHA256-hash the email so AppsFlyer can stitch this mobile user with
-        // web sessions for cross-device People-Based Attribution.
         properties.email?.let { email ->
             AppsFlyerLib.getInstance().setUserEmails(
                 AppsFlyerProperties.EmailsCryptType.SHA256, email
@@ -1331,6 +1357,7 @@ class BrazeTracker @Inject constructor(
         // Pre-fetch content cards so banners are available immediately when the
         // user navigates to a screen that shows the BrazeContentCardsActivity.
         com.braze.Braze.getInstance(context).requestContentCardsRefresh()
+        // Note: Braze Banners (BannerView) requires a newer SDK version. Upgrade braze > 33.0.0 to enable.
     }
 
     override fun track(event: AnalyticsEvent) {
@@ -1466,6 +1493,11 @@ class BrazeTracker @Inject constructor(
                 } else {
                     braze.logCustomEvent(event.name, props.toBrazeProperties())
                 }
+                // Flush immediately for trigger_ events so Braze evaluates
+                // action-based campaigns (in-app, content card) without delay.
+                if (event.name.startsWith("trigger_")) {
+                    braze.requestImmediateDataFlush()
+                }
             }
         }
         // In debug, flush immediately so events appear in the Braze dashboard
@@ -1555,9 +1587,14 @@ class BrazeTracker @Inject constructor(
                       else         com.braze.enums.NotificationSubscriptionType.UNSUBSCRIBED
         user.setPushNotificationSubscriptionType(subType)
         user.setEmailNotificationSubscriptionType(subType)
-        // Channel-level subscription group (push + email + WhatsApp):
-        if (enabled) user.addToSubscriptionGroup(WHATSAPP_GROUP_ID)
-        else         user.removeFromSubscriptionGroup(WHATSAPP_GROUP_ID)
+        // Channel-level subscription groups (WhatsApp + Email):
+        if (enabled) {
+            user.addToSubscriptionGroup(WHATSAPP_GROUP_ID)
+            user.addToSubscriptionGroup(EMAIL_GROUP_ID)
+        } else {
+            user.removeFromSubscriptionGroup(WHATSAPP_GROUP_ID)
+            user.removeFromSubscriptionGroup(EMAIL_GROUP_ID)
+        }
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
@@ -1610,6 +1647,8 @@ class BrazeTracker @Inject constructor(
         private const val ENDPOINT             = "sdk.fra-01.braze.eu"
         private const val CURRENCY_IDR         = "IDR"
         private const val WHATSAPP_GROUP_ID = "36bba8fd-c772-4ca2-8a83-81bbc411501d"
+        private const val EMAIL_GROUP_ID = "8cd50cfa-c961-4d42-afc0-348bf9772c18"
+
     }
 }
 

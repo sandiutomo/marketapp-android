@@ -74,6 +74,13 @@ class ProfileFragment : Fragment() {
             binding.btnTriggerBanner.setOnClickListener {
                 analyticsManager.track(AnalyticsEvent.TriggerBannerTest)
             }
+            binding.btnTriggerInapp.setOnClickListener {
+                analyticsManager.track(AnalyticsEvent.TriggerInAppTest)
+            }
+            binding.btnTriggerContentCard.setOnClickListener {
+                analyticsManager.track(AnalyticsEvent.TriggerContentCardTest)
+                ContentCardsBottomSheet().show(parentFragmentManager, ContentCardsBottomSheet.TAG)
+            }
             binding.btnTriggerExperiment.setOnClickListener {
                 analyticsManager.track(AnalyticsEvent.TriggerExperimentTest)
             }

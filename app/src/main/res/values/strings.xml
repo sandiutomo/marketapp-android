@@ -96,5 +96,7 @@
     <!-- Debug -->
     <string name="debug_trigger_push">Test Push</string>
     <string name="debug_trigger_banner">Test Banner</string>
+    <string name="debug_trigger_inapp">Test In-App</string>
+    <string name="debug_trigger_content_card">Test Content Card</string>
     <string name="debug_trigger_experiment">Test Experiment</string>
 </resources>

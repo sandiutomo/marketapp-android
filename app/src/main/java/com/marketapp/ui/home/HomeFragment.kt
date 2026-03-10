@@ -10,9 +10,9 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.fragment.findNavController
+import androidx.recyclerview.widget.ConcatAdapter
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.marketapp.R
-import com.marketapp.data.model.Product
 import com.marketapp.data.model.UiState
 import com.marketapp.databinding.FragmentHomeBinding
 import dagger.hilt.android.AndroidEntryPoint
@@ -28,6 +28,7 @@ class HomeFragment : Fragment() {
     private val viewModel: HomeViewModel by viewModels()
     private lateinit var adapter: ProductAdapter
     private lateinit var promotionAdapter: PromotionAdapter
+    private lateinit var promotionsHeaderAdapter: PromotionsHeaderAdapter
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?) =
         FragmentHomeBinding.inflate(inflater, container, false).also { _binding = it }.root
@@ -36,7 +37,6 @@ class HomeFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
         setupGreeting()
         setupRecycler()
-        setupPromotions()
         setupSwipeRefresh()
         observeProducts()
         observePromotions()
@@ -52,27 +52,14 @@ class HomeFragment : Fragment() {
     }
 
     private fun setupRecycler() {
-        adapter = ProductAdapter { product, position ->
-            navigateToProduct(product.id)
-        }
+        adapter = ProductAdapter { product, _ -> navigateToProduct(product.id) }
+        promotionAdapter = PromotionAdapter { promo -> viewModel.onPromotionTapped(promo) }
+        promotionsHeaderAdapter = PromotionsHeaderAdapter(promotionAdapter)
         binding.recyclerHome.apply {
             layoutManager = LinearLayoutManager(requireContext()).also {
                 it.initialPrefetchItemCount = 4
             }
-            adapter = this@HomeFragment.adapter
-            setItemViewCacheSize(20)
-        }
-    }
-
-    private fun setupPromotions() {
-        promotionAdapter = PromotionAdapter { promo ->
-            viewModel.onPromotionTapped(promo)
-        }
-        binding.recyclerPromotions.apply {
-            layoutManager = LinearLayoutManager(
-                requireContext(), LinearLayoutManager.HORIZONTAL, false
-            )
-            adapter = promotionAdapter
+            adapter = ConcatAdapter(promotionsHeaderAdapter, this@HomeFragment.adapter)
             setHasFixedSize(true)
         }
     }
@@ -114,8 +101,7 @@ class HomeFragment : Fragment() {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 viewModel.promotions.collectLatest { promos ->
                     promotionAdapter.submitList(promos)
-                    binding.recyclerPromotions.visibility =
-                        if (promos.isEmpty()) View.GONE else View.VISIBLE
+                    promotionsHeaderAdapter.setVisible(promos.isNotEmpty())
                 }
             }
         }

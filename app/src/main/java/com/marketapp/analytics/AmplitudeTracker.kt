@@ -76,6 +76,7 @@ class AmplitudeTracker @Inject constructor(
             if (BuildConfig.DEBUG) {
                 amplitude.logger.logMode = Logger.LogMode.DEBUG
             }
+            deviceId = amplitude.getDeviceId()
         }
         if (sessionRecorded) {
             (context as Application).registerActivityLifecycleCallbacks(softwareLayerFix)
@@ -116,6 +117,7 @@ class AmplitudeTracker @Inject constructor(
         // Attach the SessionReplayPlugin the first time we have a valid session.
         // By the time the first event is tracked, the Activity is on screen and
         // Amplitude has established a session (sessionId is a positive timestamp).
+        if (amplitude.sessionId > 0) sessionId = amplitude.sessionId
         if (!sessionReplayAttached && sessionRecorded && amplitude.sessionId > 0) {
             sessionReplayAttached = true
             amplitude.add(SessionReplayPlugin(sampleRate = 1.0))
@@ -209,5 +211,13 @@ class AmplitudeTracker @Inject constructor(
 
     override fun shutdown() {
         amplitude.flush()
+    }
+
+    companion object {
+        /** Exposed for cross-SDK integrations (e.g. AppsFlyer setAdditionalData). */
+        @Volatile var deviceId: String? = null
+            private set
+        @Volatile var sessionId: Long = -1L
+            private set
     }
 }

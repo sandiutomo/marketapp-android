@@ -67,6 +67,18 @@ class MainActivity : AppCompatActivity() {
         if (FacebookSdk.isInitialized()) {
             AppEventsLogger.activateApp(application)
         }
+        // Explicitly register in-app message manager so it is never missed due to the
+        // async BrazeActivityLifecycleCallbackListener initialization race condition.
+        com.braze.ui.inappmessage.BrazeInAppMessageManager
+            .getInstance()
+            .registerInAppMessageManager(this)
+    }
+
+    override fun onPause() {
+        super.onPause()
+        com.braze.ui.inappmessage.BrazeInAppMessageManager
+            .getInstance()
+            .unregisterInAppMessageManager(this)
     }
 
     override fun onDestroy() {
@@ -111,7 +123,7 @@ class MainActivity : AppCompatActivity() {
             )
         )
         if (BuildConfig.DEBUG) {
-            Log.d("DEEP_LINK", "Cold start attribution: $uri | utm_source=$utmSource")
+            Log.d("Analytics", "[DeepLink] Cold start attribution: $uri | utm_source=$utmSource")
         }
     }
 
@@ -151,7 +163,7 @@ class MainActivity : AppCompatActivity() {
             )
         }
         if (BuildConfig.DEBUG) {
-            Log.d("DEEP_LINK", "Warm start deep link: $uri | utm_source=$utmSource")
+            Log.d("Analytics", "[DeepLink] Warm start deep link: $uri | utm_source=$utmSource")
         }
         routeDeepLink(uri)
     }
@@ -195,7 +207,7 @@ class MainActivity : AppCompatActivity() {
             )
         )
         if (BuildConfig.DEBUG) {
-            Log.d("DEEP_LINK", "Push tap attributed: source=$utmSource deepLink=$deepLink")
+            Log.d("Analytics", "[DeepLink] Push tap attributed: source=$utmSource deepLink=$deepLink")
         }
         deepLink?.let { routeDeepLink(it.toUri()) }
     }
@@ -218,7 +230,7 @@ class MainActivity : AppCompatActivity() {
                 )
             )
             if (BuildConfig.DEBUG) {
-                Log.d("DEEP_LINK", "AppsFlyer OneLink: source=$source medium=$medium campaign=$campaign")
+                Log.d("Analytics", "[DeepLink] AppsFlyer OneLink: source=$source medium=$medium campaign=$campaign")
             }
             deepLink?.let { runOnUiThread { routeDeepLink(it.toUri()) } }
         }
@@ -237,7 +249,7 @@ class MainActivity : AppCompatActivity() {
      */
     private fun routeDeepLink(uri: Uri) {
         if (BuildConfig.DEBUG) {
-            Log.d("DEEP_LINK", "Routing → uri=$uri")
+            Log.d("Analytics", "[DeepLink] Routing → uri=$uri")
         }
         binding.root.post {
             val navOptions = NavOptions.Builder()
@@ -248,7 +260,7 @@ class MainActivity : AppCompatActivity() {
                 val request = NavDeepLinkRequest.Builder.fromUri(uri).build()
                 navController.navigate(request, navOptions)
             } catch (e: Exception) {
-                Log.e("DEEP_LINK", "No destination for uri=$uri, falling back to home", e)
+                Log.e("Analytics", "[DeepLink] No destination for uri=$uri, falling back to home", e)
                 if (BuildConfig.DEBUG) {
                     Toast.makeText(this, "Deep link not found, going home", Toast.LENGTH_SHORT).show()
                 }
@@ -259,13 +271,13 @@ class MainActivity : AppCompatActivity() {
 
     private fun logFirebaseTokens() {
         FirebaseInstallations.getInstance().id.addOnSuccessListener { fid ->
-            Log.d("FCM_DEBUG", "Firebase Installation ID: $fid")
+            Log.d("Analytics", "[FCM] Firebase Installation ID: $fid")
         }
         FirebaseMessaging.getInstance().token.addOnSuccessListener { token ->
-            Log.d("FCM_DEBUG", "FCM Registration Token: $token")
+            Log.d("Analytics", "[FCM] Registration Token: $token")
         }
         val afid = com.appsflyer.AppsFlyerLib.getInstance().getAppsFlyerUID(this)
-        Log.d("AF_DEBUG", "AppsFlyer ID (AFID): $afid")
+        Log.d("Analytics", "[AF] AppsFlyer ID (AFID): $afid")
     }
 
     private fun setupNavigation() {
