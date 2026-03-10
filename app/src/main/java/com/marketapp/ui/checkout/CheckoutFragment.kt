@@ -40,6 +40,11 @@ class CheckoutFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
         binding.toolbar.setNavigationOnClickListener { findNavController().popBackStack() }
 
+        // Prefill shipping address with dummy test data
+        binding.etAddress.setText("Jl. testing dummy app")
+        binding.etCity.setText("Jakarta")
+        binding.etZip.setText("10620")
+
         // GA4: begin_checkout — fires on Step 1 entry.
         viewModel.onCheckoutStarted()
 
