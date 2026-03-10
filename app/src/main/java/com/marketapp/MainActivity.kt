@@ -1,17 +1,26 @@
 package com.marketapp
 
+import android.annotation.SuppressLint
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
+import android.provider.Settings
+import android.telephony.TelephonyManager
 import android.util.Log
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.net.toUri
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.lifecycle.lifecycleScope
 import androidx.navigation.NavController
+import androidx.navigation.NavDeepLinkRequest
+import androidx.navigation.NavOptions
 import androidx.navigation.fragment.NavHostFragment
 import androidx.navigation.ui.setupWithNavController
 import com.facebook.FacebookSdk
 import com.facebook.appevents.AppEventsLogger
+import com.google.android.gms.ads.identifier.AdvertisingIdClient
 import com.google.firebase.installations.FirebaseInstallations
 import com.google.firebase.messaging.FirebaseMessaging
 import com.marketapp.analytics.AnalyticsEvent
@@ -21,16 +30,20 @@ import com.marketapp.data.preferences.AppPreferences
 import com.marketapp.databinding.ActivityMainBinding
 import com.marketapp.ui.consent.ConsentBottomSheet
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import javax.inject.Inject
-import androidx.core.net.toUri
-import androidx.navigation.NavDeepLinkRequest
-import androidx.navigation.NavOptions
 
 @AndroidEntryPoint
 class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
     private lateinit var navController: NavController
+
+    // Tracks whether the Activity is currently in the resumed (visible) state.
+    // Used to distinguish warm start (backgrounded → onNewIntent) from
+    // hot start (already foregrounded → onNewIntent).
+    private var isActivityResumed = false
 
     @Inject lateinit var analyticsManager: AnalyticsManager
     @Inject lateinit var appPreferences: AppPreferences
@@ -52,7 +65,7 @@ class MainActivity : AppCompatActivity() {
         // On cold start, NavHostFragment automatically handles the deep link and builds
         // the correct back stack. We only extract UTM attribution — no manual navigation.
         intent?.let { trackDeepLinkAttribution(it) }
-        handlePushIntent(intent)
+        handlePushIntent(intent, "cold")
         setupAppsFlyerDeepLink()
 
         if (BuildConfig.DEBUG) {
@@ -62,6 +75,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
+        isActivityResumed = true
         // Only call after sdkInitialize() — first-launch activation is handled inside
         // FacebookTracker.initialize(). Subsequent foreground transitions are covered here.
         if (FacebookSdk.isInitialized()) {
@@ -76,6 +90,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onPause() {
         super.onPause()
+        isActivityResumed = false
         com.braze.ui.inappmessage.BrazeInAppMessageManager
             .getInstance()
             .unregisterInAppMessageManager(this)
@@ -91,8 +106,11 @@ class MainActivity : AppCompatActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        handleNativeDeepLink(intent)
-        handlePushIntent(intent)
+        // isActivityResumed is true when the Activity is already visible (hot start),
+        // false when it was backgrounded and this intent brings it to foreground (warm start).
+        val launchState = if (isActivityResumed) "hot" else "warm"
+        handleNativeDeepLink(intent, launchState)
+        handlePushIntent(intent, launchState)
     }
 
     /**
@@ -123,7 +141,7 @@ class MainActivity : AppCompatActivity() {
             )
         )
         if (BuildConfig.DEBUG) {
-            Log.d("Analytics", "[DeepLink] Cold start attribution: $uri | utm_source=$utmSource")
+            Log.d("Analytics", "[DeepLink] launch=cold source=native uri=$uri utm_source=$utmSource")
         }
     }
 
@@ -139,7 +157,7 @@ class MainActivity : AppCompatActivity() {
      *   marketapp://profile?utm_source=email&utm_medium=newsletter&utm_campaign=winback
      *   https://YOUR_DOMAIN/profile?utm_source=social&utm_medium=instagram
      */
-    private fun handleNativeDeepLink(intent: Intent) {
+    private fun handleNativeDeepLink(intent: Intent, launchState: String) {
         val uri = intent.data ?: return
         val host = uri.host ?: ""
         if (host.endsWith("onelink.me") || host.endsWith("appsflyer.com")) return
@@ -163,9 +181,9 @@ class MainActivity : AppCompatActivity() {
             )
         }
         if (BuildConfig.DEBUG) {
-            Log.d("Analytics", "[DeepLink] Warm start deep link: $uri | utm_source=$utmSource")
+            Log.d("Analytics", "[DeepLink] launch=$launchState source=native uri=$uri utm_source=$utmSource")
         }
-        routeDeepLink(uri)
+        routeDeepLink(uri, launchState)
     }
 
     /**
@@ -180,7 +198,7 @@ class MainActivity : AppCompatActivity() {
      *   utm_source, utm_medium, utm_campaign, utm_term (opt), utm_content (opt),
      *   deep_link (opt), campaign_id (opt)
      */
-    private fun handlePushIntent(intent: Intent) {
+    private fun handlePushIntent(intent: Intent, launchState: String) {
         val campaignId = intent.getStringExtra("campaign_id")
         val deepLink   = intent.getStringExtra("deep_link")
 
@@ -207,9 +225,9 @@ class MainActivity : AppCompatActivity() {
             )
         )
         if (BuildConfig.DEBUG) {
-            Log.d("Analytics", "[DeepLink] Push tap attributed: source=$utmSource deepLink=$deepLink")
+            Log.d("Analytics", "[DeepLink] launch=$launchState source=push utm_source=$utmSource campaign_id=$campaignId deep_link=$deepLink")
         }
-        deepLink?.let { routeDeepLink(it.toUri()) }
+        deepLink?.let { routeDeepLink(it.toUri(), launchState) }
     }
 
     /**
@@ -229,10 +247,11 @@ class MainActivity : AppCompatActivity() {
                     deepLink = deepLink
                 )
             )
+            val launchState = if (isActivityResumed) "hot" else "warm"
             if (BuildConfig.DEBUG) {
-                Log.d("Analytics", "[DeepLink] AppsFlyer OneLink: source=$source medium=$medium campaign=$campaign")
+                Log.d("Analytics", "[DeepLink] launch=$launchState source=appsflyer utm_source=$source medium=$medium campaign=$campaign deep_link=$deepLink")
             }
-            deepLink?.let { runOnUiThread { routeDeepLink(it.toUri()) } }
+            deepLink?.let { runOnUiThread { routeDeepLink(it.toUri(), launchState) } }
         }
     }
 
@@ -247,9 +266,9 @@ class MainActivity : AppCompatActivity() {
      * Falls back to the global home action when the URI doesn't match any destination,
      * preventing a blank screen after a malformed or outdated deep link.
      */
-    private fun routeDeepLink(uri: Uri) {
+    private fun routeDeepLink(uri: Uri, launchState: String) {
         if (BuildConfig.DEBUG) {
-            Log.d("Analytics", "[DeepLink] Routing → uri=$uri")
+            Log.d("Analytics", "[DeepLink] routing launch=$launchState uri=$uri")
         }
         binding.root.post {
             val navOptions = NavOptions.Builder()
@@ -260,7 +279,7 @@ class MainActivity : AppCompatActivity() {
                 val request = NavDeepLinkRequest.Builder.fromUri(uri).build()
                 navController.navigate(request, navOptions)
             } catch (e: Exception) {
-                Log.e("Analytics", "[DeepLink] No destination for uri=$uri, falling back to home", e)
+                Log.e("Analytics", "[DeepLink] no destination launch=$launchState uri=$uri — falling back to home", e)
                 if (BuildConfig.DEBUG) {
                     Toast.makeText(this, "Deep link not found, going home", Toast.LENGTH_SHORT).show()
                 }
@@ -269,6 +288,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    @SuppressLint("HardwareIds", "MissingPermission")
     private fun logFirebaseTokens() {
         FirebaseInstallations.getInstance().id.addOnSuccessListener { fid ->
             Log.d("Analytics", "[FCM] Firebase Installation ID: $fid")
@@ -277,7 +297,38 @@ class MainActivity : AppCompatActivity() {
             Log.d("Analytics", "[FCM] Registration Token: $token")
         }
         val afid = com.appsflyer.AppsFlyerLib.getInstance().getAppsFlyerUID(this)
-        Log.d("Analytics", "[AF] AppsFlyer ID (AFID): $afid")
+        Log.d("Analytics", "[AF]       AppsFlyer UID: $afid")
+
+        // ── Device identifiers (for AppsFlyer test device registration) ───────
+        val androidId = Settings.Secure.getString(contentResolver, Settings.Secure.ANDROID_ID)
+        Log.d("Analytics", "[DeviceID] Android ID:    $androidId")
+
+        val imei = if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+            try {
+                @Suppress("DEPRECATION")
+                (getSystemService(TELEPHONY_SERVICE) as TelephonyManager).deviceId ?: "null"
+            } catch (e: Exception) { "unavailable (${e.message})" }
+        } else {
+            "unavailable (API ${Build.VERSION.SDK_INT} ≥ 29)"
+        }
+        Log.d("Analytics", "[DeviceID] IMEI:          $imei")
+
+        // OAID requires the MSA SDK — not integrated in this project
+        Log.d("Analytics", "[DeviceID] OAID:          requires MSA SDK")
+
+        // Google Advertising ID and Amazon Fire AID must be fetched off the main thread
+        lifecycleScope.launch(Dispatchers.IO) {
+            val gaid = try {
+                AdvertisingIdClient.getAdvertisingIdInfo(applicationContext).id ?: "null"
+            } catch (e: Exception) { "unavailable (${e.message})" }
+            Log.d("Analytics", "[DeviceID] Google AID:    $gaid")
+
+            val fireAid = try {
+                Settings.Secure.getString(contentResolver, "advertising_id")
+                    .takeIf { !it.isNullOrEmpty() } ?: "not a Fire device"
+            } catch (e: Exception) { "unavailable (${e.message})" }
+            Log.d("Analytics", "[DeviceID] Fire AID:      $fireAid")
+        }
     }
 
     private fun setupNavigation() {

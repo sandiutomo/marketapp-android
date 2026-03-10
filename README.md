@@ -434,13 +434,35 @@ All `trigger_*` events call `braze.requestImmediateDataFlush()` to ensure the ca
 
 | Prefix | Source |
 |---|---|
-| `[DeepLink]` | Deep link routing, UTM attribution |
-| `[AF]` | AppsFlyer general |
-| `[AF/EDDL]` | AppsFlyer extended deferred deep link |
-| `[AF/UDL]` | AppsFlyer unified deep link |
-| `[FCM]` | Firebase token logging |
+| `[DeepLink]` | Deep link routing and UTM attribution — includes `launch=cold\|warm\|hot` and `source=native\|push\|appsflyer` |
+| `[AF]` | AppsFlyer UID |
+| `[AF/EDDL]` | AppsFlyer extended deferred deep link (fresh install) |
+| `[AF/UDL]` | AppsFlyer unified deep link (app already installed) |
+| `[FCM]` | Firebase Installation ID and FCM registration token |
+| `[DeviceID]` | Device identifiers for AppsFlyer test device registration |
 | `[Facebook]` | Facebook SDK |
 | `[PostHog]` | PostHog |
+
+**Deep link log format:**
+```
+[DeepLink] launch=cold  source=native    uri=marketapp://product/123 utm_source=email
+[DeepLink] launch=warm  source=native    uri=marketapp://product/123 utm_source=push
+[DeepLink] launch=hot   source=native    uri=marketapp://product/123 utm_source=social
+[DeepLink] launch=cold  source=push      utm_source=braze campaign_id=abc deep_link=marketapp://home
+[DeepLink] launch=warm  source=appsflyer utm_source=email medium=newsletter campaign=winback deep_link=marketapp://product/99
+[DeepLink] routing      launch=warm      uri=marketapp://product/99
+[DeepLink] no destination launch=hot     uri=marketapp://unknown — falling back to home
+```
+
+**Device identifier log format** (debug only, on app start):
+```
+[AF]       AppsFlyer UID: <afid>
+[DeviceID] Android ID:    <android_id>         ← primary AF test device identifier
+[DeviceID] IMEI:          <imei>               ← API < 29 only; requires READ_PHONE_STATE
+[DeviceID] OAID:          requires MSA SDK     ← MSA SDK not integrated
+[DeviceID] Google AID:    <gaid>               ← Google Advertising ID (GAID)
+[DeviceID] Fire AID:      <fire_aid>           ← Amazon Fire devices only
+```
 
 Filter with: `adb logcat -s Analytics`
 
