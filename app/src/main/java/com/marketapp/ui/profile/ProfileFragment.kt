@@ -7,12 +7,12 @@ import android.view.ViewGroup
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
-import androidx.navigation.fragment.findNavController
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import com.marketapp.BuildConfig
 import com.marketapp.R
+import com.marketapp.analytics.AnalyticsEvent
 import com.marketapp.analytics.AnalyticsManager
 import com.marketapp.databinding.FragmentProfileBinding
 import com.marketapp.ui.auth.AuthViewModel
@@ -68,10 +68,14 @@ class ProfileFragment : Fragment() {
 
         if (BuildConfig.DEBUG) {
             binding.cardDebug.isVisible = true
-            binding.rowDeveloperOptions.apply {
-                ivIcon.setImageResource(R.drawable.ic_settings)
-                tvLabel.text = getString(R.string.developer_options)
-                root.setOnClickListener { findNavController().navigate(R.id.action_profile_to_debug) }
+            binding.btnTriggerPush.setOnClickListener {
+                analyticsManager.track(AnalyticsEvent.TriggerPushTest)
+            }
+            binding.btnTriggerBanner.setOnClickListener {
+                analyticsManager.track(AnalyticsEvent.TriggerBannerTest)
+            }
+            binding.btnTriggerExperiment.setOnClickListener {
+                analyticsManager.track(AnalyticsEvent.TriggerExperimentTest)
             }
         }
 

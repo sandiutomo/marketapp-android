@@ -5,6 +5,7 @@ import com.google.firebase.perf.metrics.Trace
 import com.marketapp.analytics.AnalyticsEvent
 import com.marketapp.analytics.AnalyticsManager
 import com.marketapp.analytics.EcommerceItem
+import com.marketapp.analytics.toEcommerceItems
 import com.marketapp.analytics.PerformanceMonitor
 import com.marketapp.analytics.UserProperties
 import com.marketapp.data.model.Cart
@@ -129,13 +130,4 @@ class CheckoutViewModel @Inject constructor(
         pendingPaymentMethod = ""
     }
 
-    private fun Cart.toEcommerceItems() = items.map {
-        EcommerceItem(
-            itemId   = it.product.id.toString(),
-            itemName = it.product.title,
-            price    = it.product.priceIdr,
-            quantity = it.quantity,
-            category = it.product.category
-        )
-    }
 }

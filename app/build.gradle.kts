@@ -151,6 +151,8 @@ dependencies {
     implementation(libs.firebase.performance)
     implementation(libs.firebase.inappmessaging)
     implementation(libs.play.services.auth)
+    implementation(libs.play.services.appset)
+    implementation(libs.play.services.ads.identifier)
 
     implementation(libs.mixpanel)
     implementation(libs.mixpanel.session.replay)
@@ -177,4 +179,15 @@ dependencies {
     implementation(libs.clarity)
 
     implementation(libs.facebook.core)
+
+    // ── Test ─────────────────────────────────────────────────────────────────
+    testImplementation(libs.junit)
+    testImplementation(libs.mockk)
+    testImplementation(libs.coroutines.test)
+
+    androidTestImplementation(libs.androidx.test.ext)
+    androidTestImplementation(libs.espresso.core)
+    androidTestImplementation(libs.mockk.android)
+    androidTestImplementation(libs.hilt.testing)
+    kaptAndroidTest(libs.hilt.compiler)
 }

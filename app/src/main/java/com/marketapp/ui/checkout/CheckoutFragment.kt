@@ -13,10 +13,12 @@ import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.fragment.findNavController
 import androidx.navigation.fragment.navArgs
 import com.marketapp.R
+import com.marketapp.analytics.AnalyticsManager
 import com.marketapp.databinding.FragmentCheckoutBinding
 import com.marketapp.databinding.FragmentCheckoutPaymentBinding
 import com.marketapp.databinding.FragmentOrderConfirmationBinding
 import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
@@ -115,12 +117,19 @@ class OrderConfirmationFragment : Fragment() {
     private val args: OrderConfirmationFragmentArgs by navArgs()
     private val viewModel: CheckoutViewModel by activityViewModels()
 
+    @Inject lateinit var analyticsManager: AnalyticsManager
+
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?) =
         FragmentOrderConfirmationBinding.inflate(inflater, container, false).also { _binding = it }.root
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         binding.tvOrderId.text = args.orderId
+        // Order ID is PII — mask it in every session replay SDK.
+        // PostHog: adds "ph-no-capture" to contentDescription.
+        // Clarity: calls Clarity.maskView(). Mixpanel: already masked globally via
+        // AutoMaskedView.Text in its session replay config.
+        analyticsManager.maskView(binding.tvOrderId)
         // GA4: purchase — fires here once the order is confirmed and visible to the user.
         viewModel.onOrderConfirmed()
         binding.btnContinueShopping.setOnClickListener {

@@ -125,7 +125,7 @@ class HomeFragment : Fragment() {
         findNavController().navigate(
             R.id.action_home_to_product,
             android.os.Bundle().apply {
-                putInt("productId", productId)
+                putString("productId", productId.toString())
                 putString("source", "home")
             }
         )

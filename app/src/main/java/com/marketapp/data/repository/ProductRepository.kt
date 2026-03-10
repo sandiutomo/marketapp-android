@@ -45,9 +45,19 @@ class ProductRepositoryImpl @Inject constructor(
 
     // Simple in-memory cache — replace with Room if offline persistence is needed
     private var cachedProducts: List<Product>? = null
+    // Pre-lowercased (title, description, category) aligned by index with cachedProducts.
+    // Built once at cache time so searchProducts() never calls lowercase() per-item.
+    private var searchIndex: List<Triple<String, String, String>>? = null
 
     override suspend fun getProducts(limit: Int): Result<List<Product>> = runCatching {
-        cachedProducts ?: api.getProducts(limit).also { cachedProducts = it }
+        cachedProducts ?: api.getProducts(limit).also { primeCache(it) }
+    }
+
+    private fun primeCache(products: List<Product>) {
+        cachedProducts = products
+        searchIndex = products.map {
+            Triple(it.title.lowercase(), it.description.lowercase(), it.category.lowercase())
+        }
     }
 
     override suspend fun getProduct(id: Int): Result<Product> = runCatching {
@@ -64,12 +74,12 @@ class ProductRepositoryImpl @Inject constructor(
     }
 
     override suspend fun searchProducts(query: String): Result<List<Product>> = runCatching {
-        val all = cachedProducts ?: api.getProducts(100).also { cachedProducts = it }
+        val all = cachedProducts ?: api.getProducts(30).also { primeCache(it) }
+        val idx = searchIndex ?: return@runCatching all
         val q = query.lowercase()
-        all.filter {
-            it.title.lowercase().contains(q) ||
-            it.description.lowercase().contains(q) ||
-            it.category.lowercase().contains(q)
+        all.filterIndexed { i, _ ->
+            val s = idx[i]
+            s.first.contains(q) || s.second.contains(q) || s.third.contains(q)
         }
     }
 }

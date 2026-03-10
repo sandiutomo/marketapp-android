@@ -3,7 +3,6 @@ package com.marketapp.analytics
 import android.content.Context
 import android.os.Bundle
 import android.util.Log
-import android.widget.EditText
 import com.appsflyer.AFInAppEventParameterName
 import com.appsflyer.AFInAppEventType
 import com.appsflyer.AppsFlyerConsent
@@ -26,6 +25,7 @@ import com.microsoft.clarity.models.LogLevel
 import com.mixpanel.android.mpmetrics.MixpanelAPI
 import com.mixpanel.android.sessionreplay.MPSessionReplay
 import com.mixpanel.android.sessionreplay.models.MPSessionReplayConfig
+import com.mixpanel.android.sessionreplay.sensitive_views.AutoMaskedView
 import com.mixpanel.android.sessionreplay.sensitive_views.SensitiveViewManager
 import com.posthog.PostHog
 import com.posthog.android.PostHogAndroid
@@ -128,7 +128,7 @@ class FacebookTracker @Inject constructor(
                     AppEventsConstants.EVENT_NAME_SEARCHED,
                     Bundle().apply {
                         putString(AppEventsConstants.EVENT_PARAM_SEARCH_STRING, event.query)
-                        putBoolean(AppEventsConstants.EVENT_PARAM_SUCCESS,      event.resultCount > 0)
+                        putString(AppEventsConstants.EVENT_PARAM_SUCCESS, if (event.resultCount > 0) "1" else "0")
                     }
                 )
             }
@@ -137,17 +137,70 @@ class FacebookTracker @Inject constructor(
                     AppEventsConstants.EVENT_NAME_COMPLETED_REGISTRATION,
                     Bundle().apply {
                         putString(AppEventsConstants.EVENT_PARAM_REGISTRATION_METHOD, event.method)
-                        putBoolean(AppEventsConstants.EVENT_PARAM_SUCCESS, true)
+                        putString(AppEventsConstants.EVENT_PARAM_SUCCESS, "1")
+                    }
+                )
+            }
+            is AnalyticsEvent.OnboardingCompleted -> {
+                // Fires when the user accepts consent and completes the onboarding flow —
+                // the final step of the full registration journey for Facebook attribution.
+                // UserRegistered fires at account creation; this fires at consent acceptance,
+                // capturing users who already had accounts but are new to this install.
+                logger.logEvent(
+                    AppEventsConstants.EVENT_NAME_COMPLETED_REGISTRATION,
+                    Bundle().apply {
+                        putString(AppEventsConstants.EVENT_PARAM_REGISTRATION_METHOD, event.method)
+                        putString(AppEventsConstants.EVENT_PARAM_SUCCESS, "1")
                     }
                 )
             }
             is AnalyticsEvent.UserSignedIn -> {
-                logger.logEvent("fb_mobile_login", Bundle().apply {
-                    putString("method", event.method)
-                })
+                logger.logEvent(
+                    "fb_mobile_login",  // AppEventsConstants.EVENT_NAME_LOGGED_IN is absent in facebook-core; raw value is equivalent
+                    Bundle().apply {
+                        // EVENT_PARAM_REGISTRATION_METHOD is the standard FB param for
+                        // both sign_up and login (e.g. "email", "google", "apple").
+                        putString(AppEventsConstants.EVENT_PARAM_REGISTRATION_METHOD, event.method)
+                    }
+                )
             }
             is AnalyticsEvent.UserSignedOut -> {
-                logger.logEvent("fb_mobile_logout")
+                // Facebook has no standard logout constant; "fb_mobile_logged_out" is
+                // the accepted custom name used across Meta's own sample apps.
+                logger.logEvent(
+                    "fb_mobile_logged_out",
+                    Bundle().apply {
+                        putLong("session_duration_ms", event.sessionDuration)
+                    }
+                )
+            }
+            is AnalyticsEvent.PaymentMethodSelected -> {
+                // GA4: add_payment_info — user selects payment method at checkout.
+                val params = Bundle().apply {
+                    putString(AppEventsConstants.EVENT_PARAM_CONTENT_TYPE, event.method)
+                    putString(AppEventsConstants.EVENT_PARAM_CURRENCY,     CURRENCY_IDR)
+                    putString(AppEventsConstants.EVENT_PARAM_SUCCESS,      "1")
+                    if (event.items.isNotEmpty())
+                        putInt(AppEventsConstants.EVENT_PARAM_NUM_ITEMS, event.items.sumOf { it.quantity })
+                }
+                if (event.totalValue > 0)
+                    logger.logEvent(AppEventsConstants.EVENT_NAME_ADDED_PAYMENT_INFO, event.totalValue, params)
+                else
+                    logger.logEvent(AppEventsConstants.EVENT_NAME_ADDED_PAYMENT_INFO, params)
+            }
+            is AnalyticsEvent.PaymentMethodAdded -> {
+                // Profile — user saves a payment card. Same FB standard event, no monetary value.
+                logger.logEvent(
+                    AppEventsConstants.EVENT_NAME_ADDED_PAYMENT_INFO,
+                    Bundle().apply {
+                        putString(AppEventsConstants.EVENT_PARAM_SUCCESS, "1")
+                    }
+                )
+            }
+            is AnalyticsEvent.Subscribe -> {
+                // Fires when the user explicitly opts in to analytics tracking.
+                // Maps to Meta's standard Subscribe conversion event.
+                logger.logEvent(AppEventsConstants.EVENT_NAME_SUBSCRIBE)
             }
             is AnalyticsEvent.CampaignOpened -> {
                 logger.logEvent(
@@ -173,7 +226,13 @@ class FacebookTracker @Inject constructor(
             properties.email,
             properties.firstName ?: properties.name?.substringBefore(" "),
             properties.lastName  ?: properties.name?.substringAfter(" ", "")?.ifEmpty { null },
-            properties.phone, null, null, null, null, null, properties.country
+            properties.phone,
+            null,
+            null,
+            null,
+            null,
+            null,
+            properties.country
         )
     }
 
@@ -202,37 +261,37 @@ class FirebaseTracker @Inject constructor() : AnalyticsTracker {
     override fun track(event: AnalyticsEvent) {
         when (event) {
             is AnalyticsEvent.ScreenView            -> fa.logEvent(FirebaseAnalytics.Event.SCREEN_VIEW,       screenViewBundle(event))
-            // Product list
+            // Product list ───────────────────────────────────────────────────────────
             is AnalyticsEvent.ProductListViewed     -> fa.logEvent(FirebaseAnalytics.Event.VIEW_ITEM_LIST,    viewItemListBundle(event))
             is AnalyticsEvent.ProductSelected       -> fa.logEvent(FirebaseAnalytics.Event.SELECT_ITEM,       selectItemBundle(event))
-            // Product detail
+            // Product detail ───────────────────────────────────────────────────────────
             is AnalyticsEvent.ProductViewed         -> fa.logEvent(FirebaseAnalytics.Event.VIEW_ITEM,         viewItemBundle(event))
             is AnalyticsEvent.ProductWishlisted     -> if (event.added) {
                 fa.logEvent(FirebaseAnalytics.Event.ADD_TO_WISHLIST, addToWishlistBundle(event))
             } else {
                 fa.logEvent(event.name, removeFromWishlistBundle(event))
             }
-            // Cart
+            // Cart ───────────────────────────────────────────────────────────
             is AnalyticsEvent.AddToCart             -> fa.logEvent(FirebaseAnalytics.Event.ADD_TO_CART,       addToCartBundle(event))
             is AnalyticsEvent.RemoveFromCart        -> fa.logEvent(FirebaseAnalytics.Event.REMOVE_FROM_CART,  removeFromCartBundle(event))
             is AnalyticsEvent.CartViewed            -> fa.logEvent(FirebaseAnalytics.Event.VIEW_CART,         viewCartBundle(event))
-            // Checkout funnel
+            // Checkout funnel ───────────────────────────────────────────────────────────
             is AnalyticsEvent.CheckoutStarted       -> fa.logEvent(FirebaseAnalytics.Event.BEGIN_CHECKOUT,    beginCheckoutBundle(event))
             is AnalyticsEvent.ShippingInfoAdded     -> fa.logEvent(FirebaseAnalytics.Event.ADD_SHIPPING_INFO, shippingInfoBundle(event))
             is AnalyticsEvent.PaymentMethodSelected -> fa.logEvent(FirebaseAnalytics.Event.ADD_PAYMENT_INFO,  paymentInfoBundle(event))
             is AnalyticsEvent.OrderPlaced           -> fa.logEvent(FirebaseAnalytics.Event.PURCHASE,          purchaseBundle(event))
             is AnalyticsEvent.OrderRefunded         -> fa.logEvent(FirebaseAnalytics.Event.REFUND,            refundBundle(event))
-            // Promotions
+            // Promotions ───────────────────────────────────────────────────────────
             is AnalyticsEvent.PromotionViewed       -> fa.logEvent(FirebaseAnalytics.Event.VIEW_PROMOTION,    promotionBundle(event.promotionId, event.promotionName, event.creativeName, event.creativeSlot, event.locationId))
             is AnalyticsEvent.PromotionSelected     -> fa.logEvent(FirebaseAnalytics.Event.SELECT_PROMOTION,  promotionBundle(event.promotionId, event.promotionName, event.creativeName, event.creativeSlot, event.locationId))
-            // Search / discovery
+            // Search / discovery ───────────────────────────────────────────────────────────
             is AnalyticsEvent.SearchPerformed       -> fa.logEvent(FirebaseAnalytics.Event.SEARCH,            searchBundle(event))
             is AnalyticsEvent.ProductShared         -> fa.logEvent(FirebaseAnalytics.Event.SHARE,             shareBundle(event))
             is AnalyticsEvent.CategorySelected      -> fa.logEvent(FirebaseAnalytics.Event.SELECT_CONTENT,    selectContentBundle(event))
-            // Authentication
+            // Authentication ───────────────────────────────────────────────────────────
             is AnalyticsEvent.UserSignedIn          -> fa.logEvent(FirebaseAnalytics.Event.LOGIN,             methodBundle(event.method))
             is AnalyticsEvent.UserRegistered        -> fa.logEvent(FirebaseAnalytics.Event.SIGN_UP,           methodBundle(event.method))
-            // Campaign
+            // Campaign ───────────────────────────────────────────────────────────
             // campaign_details     → Firebase reserved event; recorded internally for session attribution (invisible in DebugView by design)
             // deeplink_campaign_open → custom event; visible in DebugView for monitoring
             is AnalyticsEvent.CampaignOpened        -> {
@@ -243,12 +302,12 @@ class FirebaseTracker @Inject constructor() : AnalyticsTracker {
         }
         // Crashlytics ───────────────────────────────────────────────────────────
         when (event) {
-            // Navigation
+            // Navigation ───────────────────────────────────────────────────────────
             is AnalyticsEvent.ScreenView -> {
                 fc.log("SCREEN → ${event.screenName}")
                 fc.setCustomKey("current_screen", event.screenName)
             }
-            // Product discovery
+            // Product discovery ───────────────────────────────────────────────────────────
             is AnalyticsEvent.SearchPerformed -> {
                 fc.log("SEARCH \"${event.query}\" → ${event.resultCount} results")
                 fc.setCustomKey("last_search_query", event.query.take(100))
@@ -259,7 +318,7 @@ class FirebaseTracker @Inject constructor() : AnalyticsTracker {
                 fc.setCustomKey("last_product_name",     event.productName.take(64))
                 fc.setCustomKey("last_product_category", event.category)
             }
-            // Cart
+            // Cart ───────────────────────────────────────────────────────────
             is AnalyticsEvent.AddToCart -> {
                 fc.log("ADD_TO_CART ${event.productId} qty=${event.quantity}")
                 fc.setCustomKey("last_add_to_cart_id", event.productId)
@@ -270,7 +329,7 @@ class FirebaseTracker @Inject constructor() : AnalyticsTracker {
                 fc.setCustomKey("cart_item_count", totalQty)
                 fc.setCustomKey("cart_value",      event.totalValue)
             }
-            // Checkout funnel — step tracking is critical for diagnosing drop-offs ──
+            // Checkout funnel ───────────────────────────────────────────────────────────
             is AnalyticsEvent.CheckoutStarted -> {
                 fc.log("CHECKOUT_STARTED items=${event.items.size} value=${event.totalValue}")
                 fc.setCustomKey("checkout_step",        "started")
@@ -294,7 +353,7 @@ class FirebaseTracker @Inject constructor() : AnalyticsTracker {
                 // Record as a typed non-fatal so it gets its own Crashlytics issue group.
                 fc.recordException(AppException("ORDER_FAILED", "Checkout", event.reason))
             }
-            // Auth
+            // Auth ───────────────────────────────────────────────────────────
             is AnalyticsEvent.UserSignedIn  -> fc.log("LOGIN method=${event.method}")
             is AnalyticsEvent.UserRegistered-> fc.log("REGISTER method=${event.method}")
             // Non-fatal errors ──────────────────────────────────────────────────────
@@ -310,18 +369,23 @@ class FirebaseTracker @Inject constructor() : AnalyticsTracker {
 
     override fun identify(userId: String, properties: UserProperties) {
         fa.setUserId(userId)
-        // Email domain
+        // Email domain ───────────────────────────────────────────────────────────
         properties.email?.let          { fa.setUserProperty("email_domain",        it.substringAfter("@")) }
-        // Geo
+        // Geo ───────────────────────────────────────────────────────────
         properties.country?.let        { fa.setUserProperty("country",             it) }
-        // Auth
+        // Auth ───────────────────────────────────────────────────────────
         properties.loginMethod?.let    { fa.setUserProperty("login_method",        it) }
-        // Purchase behavior — drives GA4 audiences and Google Ads ROAS segmentation
+        // Purchase behavior ───────────────────────────────────────────────────────────
         properties.hasPurchased?.let   { fa.setUserProperty("has_purchased",       it.toString()) }
         properties.orderCount?.let     { fa.setUserProperty("order_count_bucket",  it.toOrderCountBucket()) }
         properties.lifetimeValue?.let  { fa.setUserProperty("ltv_bucket",          it.toLtvBucket()) }
-        // Personalisation
+        // Personalisation ───────────────────────────────────────────────────────────
         properties.preferredCategory?.let { fa.setUserProperty("preferred_category", it) }
+        // Device identifiers ───────────────────────────────────────────────────────────
+        fa.setUserProperty("c_user_id",      userId)
+        properties.deviceId?.let       { fa.setUserProperty("c_device_id",    it) }
+        properties.appSetId?.let       { fa.setUserProperty("app_set_id",     it) }
+        properties.advertisingId?.let  { fa.setUserProperty("advertising_id", it) }
 
         fc.setUserId(userId)
         properties.email?.let         { fc.setCustomKey("user_email",     it) }
@@ -356,14 +420,13 @@ class FirebaseTracker @Inject constructor() : AnalyticsTracker {
             FirebaseAnalytics.ConsentType.AD_PERSONALIZATION to status
         ))
     }
-    /** Typed non-fatal exception for Crashlytics. */
     private class AppException(
         code: String,
         screen: String,
         detail: String
     ) : Exception("[$screen/$code] $detail")
 
-    // GA4 bundle builders
+    // GA4 bundle builders ───────────────────────────────────────────────────────────
     private fun viewItemBundle(e: AnalyticsEvent.ProductViewed) = Bundle().apply {
         putString(FirebaseAnalytics.Param.CURRENCY, "IDR")
         putDouble(FirebaseAnalytics.Param.VALUE, e.price)
@@ -484,32 +547,41 @@ class FirebaseTracker @Inject constructor() : AnalyticsTracker {
         price: Double,
         category: String?,
         quantity: Int,
-        brand: String?    = null,
-        variant: String?  = null,
-        discount: Double? = null,
-        index: Int?       = null
+        brand: String?        = null,
+        variant: String?      = null,
+        discount: Double?     = null,
+        index: Int?           = null,
+        affiliation: String?  = null,
+        coupon: String?       = null,
+        itemListId: String?   = null,
+        itemListName: String? = null
     ) = Bundle().apply {
         putString(FirebaseAnalytics.Param.ITEM_ID,   itemId)
         putString(FirebaseAnalytics.Param.ITEM_NAME, itemName)
         putDouble(FirebaseAnalytics.Param.PRICE,     price)
         putLong(FirebaseAnalytics.Param.QUANTITY,    quantity.toLong())
-        category?.let { putString(FirebaseAnalytics.Param.ITEM_CATEGORY, it) }
-        brand?.let    { putString(FirebaseAnalytics.Param.ITEM_BRAND,    it) }
-        variant?.let  { putString(FirebaseAnalytics.Param.ITEM_VARIANT,  it) }
-        discount?.let { putDouble(FirebaseAnalytics.Param.DISCOUNT,      it) }
-        index?.let    { putLong(FirebaseAnalytics.Param.INDEX,           it.toLong()) }
+        category?.let    { putString(FirebaseAnalytics.Param.ITEM_CATEGORY,  it) }
+        brand?.let       { putString(FirebaseAnalytics.Param.ITEM_BRAND,     it) }
+        variant?.let     { putString(FirebaseAnalytics.Param.ITEM_VARIANT,   it) }
+        discount?.let    { putDouble(FirebaseAnalytics.Param.DISCOUNT,       it) }
+        index?.let       { putLong(FirebaseAnalytics.Param.INDEX,            it.toLong()) }
+        affiliation?.let { putString(FirebaseAnalytics.Param.AFFILIATION,    it) }
+        coupon?.let      { putString(FirebaseAnalytics.Param.COUPON,         it) }
+        itemListId?.let  { putString(FirebaseAnalytics.Param.ITEM_LIST_ID,   it) }
+        itemListName?.let{ putString(FirebaseAnalytics.Param.ITEM_LIST_NAME, it) }
     }
     private fun EcommerceItem.toItemBundle() =
-        itemBundle(itemId, itemName, price, category, quantity, brand, variant, discount, index)
+        itemBundle(itemId, itemName, price, category, quantity, brand, variant, discount, index,
+                   affiliation, coupon, itemListId, itemListName)
     private fun List<EcommerceItem>.toItemBundleList(): ArrayList<Bundle> =
         ArrayList(map { it.toItemBundle() })
     private fun campaignBundle(e: AnalyticsEvent.CampaignOpened) = Bundle().apply {
-        putString("source",    e.source)
-        putString("medium",    e.medium)
-        putString("campaign",  e.campaign)
-        e.term?.let    { putString("term",     it) }
-        e.content?.let { putString("content",  it) }
-        e.deepLink?.let{ putString("deep_link", it.substringBefore("?")) }
+        putString(FirebaseAnalytics.Param.SOURCE, e.source)
+        e.medium?.let   { putString(FirebaseAnalytics.Param.MEDIUM,  it) }
+        e.campaign?.let { putString("campaign",                       it) }
+        e.term?.let     { putString(FirebaseAnalytics.Param.TERM,     it) }
+        e.content?.let  { putString(FirebaseAnalytics.Param.CONTENT,  it) }
+        e.deepLink?.let { putString("deep_link", it.substringBefore("?")) }
     }
     private fun Map<String, Any>.toBundle(): Bundle = Bundle().also { bundle ->
         forEach { (key, value) ->
@@ -545,9 +617,11 @@ class PostHogTracker @Inject constructor(
             captureDeepLinks = true
             debug              = BuildConfig.DEBUG
             // Session replay: 20% debug, 40% production. Decided once at init.
-            sessionReplay      = Math.random() < (if (BuildConfig.DEBUG) 0.2 else 0.4)
+            val sessionRecorded = Math.random() < 0.4
+            SessionReplayLogger.record("PostHog", sessionRecorded, debugPct = 40, prodPct = 40)
+            sessionReplay      = sessionRecorded
             sessionReplayConfig.apply {
-                screenshot        = true
+                screenshot        = false // wireframe mode — faster, lower bandwidth, no risk of capturing unmasked image pixels
                 maskAllTextInputs = true  // all EditText / TextInputEditText masked (PII)
                 maskAllImages     = false // product images intentional in e-commerce; mask sensitive ones individually via maskView()
                 captureLogcat     = BuildConfig.DEBUG
@@ -563,30 +637,36 @@ class PostHogTracker @Inject constructor(
 
     override fun track(event: AnalyticsEvent) {
         when (event) {
-            is AnalyticsEvent.ScreenView ->
+            is AnalyticsEvent.ScreenView -> {
+                if (BuildConfig.DEBUG) Log.d("PostHog", "screen: ${event.screenName} (${event.screenClass})")
                 PostHog.screen(
                     screenTitle = event.screenName,
                     properties  = mapOf("screen_class" to event.screenClass)
                 )
-            else ->
+            }
+            else -> {
+                if (BuildConfig.DEBUG) Log.d("PostHog", "capture: ${event.name}")
                 PostHog.capture(event = event.name, properties = event.toProperties())
+            }
         }
     }
 
     override fun identify(userId: String, properties: UserProperties) {
         val props = buildMap {
-            properties.email?.let             { put("email", it) }
-            properties.name?.let              { put("name", it) }
-            properties.country?.let           { put("country", it) }
-            properties.loginMethod?.let       { put("login_method", it) }
-            properties.hasPurchased?.let      { put("has_purchased", it) }
-            properties.orderCount?.let        { put("order_count", it) }
-            properties.lifetimeValue?.let     { put("lifetime_value", it) }
+            properties.email?.let             { put("email",              it) }
+            properties.name?.let              { put("name",               it) }
+            properties.firstName?.let         { put("first_name",         it) }
+            properties.lastName?.let          { put("last_name",          it) }
+            properties.phone?.let             { put("phone",              it) }
+            properties.country?.let           { put("country",            it) }
+            properties.loginMethod?.let       { put("login_method",       it) }
+            properties.hasPurchased?.let      { put("has_purchased",      it) }
+            properties.orderCount?.let        { put("order_count",        it) }
+            properties.lifetimeValue?.let     { put("lifetime_value",     it) }
             properties.preferredCategory?.let { put("preferred_category", it) }
-            // PostHog reserves $device_id — use c_ prefix to avoid collision.
-            properties.deviceId?.let          { put("c_device_id",    it) }
-            properties.appSetId?.let          { put("app_set_id",     it) }
-            properties.advertisingId?.let     { put("advertising_id", it) }
+            properties.deviceId?.let          { put("c_device_id",        it) }
+            properties.appSetId?.let          { put("app_set_id",         it) }
+            properties.advertisingId?.let     { put("advertising_id",     it) }
             putAll(properties.customAttributes)
         }
         val propsOnce = buildMap {
@@ -603,6 +683,8 @@ class PostHogTracker @Inject constructor(
         )
     }
     override fun reset() { PostHog.reset() }
+
+    override fun shutdown() { PostHog.flush() }
 
     override fun alias(newId: String, oldId: String) {
         PostHog.alias(alias = newId)
@@ -624,18 +706,6 @@ class PostHogTracker @Inject constructor(
         if (enabled) PostHog.optIn() else PostHog.optOut()
     }
 
-    /** PostHog Logs — captures a structured log entry visible in the PostHog
-     * Logs tab (posthog.com/docs/logs).
-     * level: "debug" | "info" | "warning" | "error" | "critical"
-     */
-    fun captureLog(level: String, message: String, tag: String? = null) {
-        val props = buildMap<String, Any> {
-            put("level", level)
-            put("message", message)
-            if (tag != null) put("attributes", mapOf("tag" to tag))
-        }
-        PostHog.capture(event = "\$log", properties = props)
-    }
 }
 
 /** Mixpanel Analytics + Session Replay. */
@@ -647,25 +717,22 @@ class MixpanelTracker @Inject constructor(
     override val name = "Mixpanel"
 
     private lateinit var mp: MixpanelAPI
-    // Stored so optInTracking() can restore the user ID as distinct ID (calling
-    // optInTracking() without an argument resets the distinct ID to the device ID).
-    private var lastUserId: String? = null
 
     override suspend fun initialize() {
         mp = MixpanelAPI.getInstance(context, BuildConfig.MIXPANEL_TOKEN, true)
 
-        // Session replay: 20% debug, 40% production.
+        // Pre-decide whether this session will be recorded (20% debug / 40% prod)
+        // so we can report the decision to SessionReplayLogger before initializing.
+        val sessionRecorded = Math.random() < 0.4
+        SessionReplayLogger.record("Mixpanel", sessionRecorded, debugPct = 40, prodPct = 40)
         val replayConfig = MPSessionReplayConfig(
             wifiOnly                 = false,
             enableLogging            = BuildConfig.DEBUG,
-            recordingSessionsPercent = if (BuildConfig.DEBUG) 20.0 else 40.0,
-            autoMaskedViews          = emptySet()
+            recordingSessionsPercent = if (sessionRecorded) 100.0 else 0.4,
+            // Text masks EditText/TextInputEditText (user PII) but not static TextViews.
+            autoMaskedViews          = setOf(AutoMaskedView.Text)
         )
         MPSessionReplay.initialize(context, BuildConfig.MIXPANEL_TOKEN, mp.distinctId, replayConfig)
-
-        // Mask all EditText (user-typed PII) but leave static text (names, prices, descriptions) visible.
-        // TextInputEditText extends EditText so Material text fields are covered automatically.
-        SensitiveViewManager.addSensitiveClass(EditText::class.java)
     }
 
     override fun track(event: AnalyticsEvent) {
@@ -696,8 +763,8 @@ class MixpanelTracker @Inject constructor(
     }
 
     override fun identify(userId: String, properties: UserProperties) {
-        lastUserId = userId
         mp.identify(userId)
+        MPSessionReplay.getInstance()?.identify(userId)
 
         val people = mp.people
         properties.email?.let             { people.set("\$email", it) }
@@ -724,8 +791,14 @@ class MixpanelTracker @Inject constructor(
         mp.registerSuperProperties(superProps)
     }
 
+    override fun maskView(view: android.view.View) {
+        SensitiveViewManager.addSensitiveView(view)
+    }
+
     override fun reset() {
         mp.reset()
+        // Sync session replay to the new anonymous distinct ID generated by reset().
+        MPSessionReplay.getInstance()?.identify(mp.distinctId)
     }
 
     override fun onNewPushToken(token: String) {
@@ -743,17 +816,10 @@ class MixpanelTracker @Inject constructor(
     }
 
     override fun setAnalyticsConsent(enabled: Boolean) {
-        if (enabled) {
-            // Pass the stored userId so the distinct ID stays as the user ID rather
-            // than resetting to the device ID (which optInTracking() does with no arg).
-            val uid = lastUserId
-            if (uid != null) mp.optInTracking(uid) else mp.optInTracking()
-        } else {
-            mp.optOutTracking()
-        }
+        if (enabled) mp.optInTracking() else mp.optOutTracking()
     }
 
-    // -- Helper ----------------------------------------------------------------
+    // Helper ───────────────────────────────────────────────────────────
     private fun Map<String, Any>.toMixpanelProps(): JSONObject = JSONObject().apply {
         forEach { (key, value) ->
             when (value) {
@@ -777,6 +843,9 @@ class AppsFlyerTracker @Inject constructor(
 
     override suspend fun initialize() {
         AppsFlyerLib.getInstance().setDebugLog(BuildConfig.DEBUG)
+        // Resolve redirect/shortened URLs (e.g. Bitly, custom redirects) before attribution
+        // so AF can correctly attribute campaigns using redirect chains.
+        AppsFlyerLib.getInstance().setResolveDeepLinkURLs("marketapp.onelink.me")
 
         // AppsFlyer consent ───────────────────────────────────────────────────────
         // Default to non-GDPR; updated when the user responds to the consent sheet
@@ -801,6 +870,9 @@ class AppsFlyerTracker @Inject constructor(
                 val term     = data["utm_term"]?.toString()
                 val content  = data["utm_content"]?.toString()
                 val deepLink = data["deep_link_value"]?.toString()
+                if (BuildConfig.DEBUG) {
+                    Log.d("AF_EDDL", "[EDDL] source=$source medium=$medium campaign=$campaign deepLink=$deepLink")
+                }
                 onDeepLink?.invoke(source, medium, campaign, term, content, deepLink)
             }
             override fun onConversionDataFail(error: String?) {
@@ -830,6 +902,9 @@ class AppsFlyerTracker @Inject constructor(
                     val term     = dl.getStringValue("utm_term")
                     val content  = dl.getStringValue("utm_content")
                     val url      = dl.getStringValue("af_dp")        ?: dl.getStringValue("deep_link_value")
+                    if (BuildConfig.DEBUG) {
+                        Log.d("AF_UDL", "[UDL] source=$source medium=$medium campaign=$campaign deepLink=$url")
+                    }
                     onDeepLink?.invoke(source, medium, campaign, term, content, url)
                 }
                 DeepLinkResult.Status.ERROR ->
@@ -839,6 +914,9 @@ class AppsFlyerTracker @Inject constructor(
         }, 3000L)
 
         AppsFlyerLib.getInstance().init(BuildConfig.APPSFLYER_DEV_KEY, null, context)
+        // Delay attribution start until setCustomerUserId() is called (after login).
+        // This ensures installs are attributed to the correct user identity, not an anonymous ID.
+        AppsFlyerLib.getInstance().waitForCustomerUserId(true)
         AppsFlyerLib.getInstance().start(context)
     }
 
@@ -911,6 +989,22 @@ class AppsFlyerTracker @Inject constructor(
                     val categories = event.items.mapNotNull { it.category }.distinct()
                     if (categories.isNotEmpty()) put(AFInAppEventParameterName.CONTENT_TYPE, categories.joinToString(","))
                 }
+                // Log one af_purchase event per line item for item-level ROAS in AF dashboards.
+                for (item in event.items) {
+                    AppsFlyerLib.getInstance().logEvent(
+                        context,
+                        AFInAppEventType.PURCHASE,
+                        mapOf(
+                            AFInAppEventParameterName.CONTENT_ID   to item.itemId,
+                            AFInAppEventParameterName.CONTENT_TYPE to (item.category ?: ""),
+                            AFInAppEventParameterName.REVENUE      to item.price * item.quantity,
+                            AFInAppEventParameterName.PRICE        to item.price,
+                            AFInAppEventParameterName.QUANTITY     to item.quantity,
+                            AFInAppEventParameterName.ORDER_ID     to event.orderId,
+                            AFInAppEventParameterName.CURRENCY     to "IDR"
+                        )
+                    )
+                }
             }
             is AnalyticsEvent.OrderFailed -> {
                 eventName = "af_order_failed"
@@ -982,10 +1076,18 @@ class AppsFlyerTracker @Inject constructor(
                 AppsFlyerProperties.EmailsCryptType.SHA256, email
             )
         }
+        properties.phone?.let { phone ->
+            AppsFlyerLib.getInstance().setPhoneNumber(phone)
+        }
     }
 
     override fun reset() {
         AppsFlyerLib.getInstance().setCustomerUserId(null)
+    }
+
+    override fun onNewPushToken(token: String) {
+        // Forward FCM token to AppsFlyer for uninstall measurement.
+        AppsFlyerLib.getInstance().updateServerUninstallToken(context, token)
     }
 
     override fun setAnalyticsConsent(enabled: Boolean) {
@@ -1199,6 +1301,9 @@ class BrazeTracker @Inject constructor(
     private var consentEnabled = true
 
     override suspend fun initialize() {
+        // Must be set before Braze.configure() so the full init sequence is captured.
+        if (BuildConfig.DEBUG) com.braze.support.BrazeLogger.logLevel = Log.VERBOSE
+
         val config = com.braze.configuration.BrazeConfig.Builder()
             .setApiKey(BuildConfig.BRAZE_API_KEY)
             .setCustomEndpoint(ENDPOINT)
@@ -1269,7 +1374,7 @@ class BrazeTracker @Inject constructor(
                         addProperty("currency",    CURRENCY_IDR)
                         addProperty("action",      "remove")
                         addProperty("products",    org.json.JSONArray().apply {
-                            put(org.json.JSONObject().apply {
+                            put(JSONObject().apply {
                                 put("product_id",   event.productId)
                                 put("product_name", event.productName)
                                 put("variant_id",   event.productId)
@@ -1311,7 +1416,7 @@ class BrazeTracker @Inject constructor(
                     braze.logPurchase(
                         item.itemId,
                         CURRENCY_IDR,
-                        java.math.BigDecimal.valueOf(item.price),
+                        BigDecimal.valueOf(item.price),
                         item.quantity,
                         com.braze.models.outgoing.BrazeProperties().apply {
                             addProperty("order_id",       event.orderId)
@@ -1322,6 +1427,8 @@ class BrazeTracker @Inject constructor(
                         }
                     )
                 }
+                // Flush immediately on purchase — revenue events must never wait in the queue.
+                braze.requestImmediateDataFlush()
             }
             // ── ecommerce.order_refunded ──────────────────────────────────────
             is AnalyticsEvent.OrderRefunded -> {
@@ -1338,6 +1445,19 @@ class BrazeTracker @Inject constructor(
                     }
                 )
             }
+            // ── onboarding_completed ──────────────────────────────────────────
+            is AnalyticsEvent.OnboardingCompleted -> {
+                braze.logCustomEvent(
+                    "onboarding_completed",
+                    com.braze.models.outgoing.BrazeProperties().apply {
+                        addProperty("method", event.method)
+                    }
+                )
+            }
+            // ── subscribe ─────────────────────────────────────────────────────
+            is AnalyticsEvent.Subscribe -> {
+                braze.logCustomEvent("subscribe")
+            }
             // ── All other events — generic custom event ───────────────────────
             else -> {
                 val props = event.toProperties().filterValues { it !is List<*> }
@@ -1348,9 +1468,8 @@ class BrazeTracker @Inject constructor(
                 }
             }
         }
-        // In debug, flush immediately so events appear in the Braze dashboard without
-        // waiting for the default 10-second auto-flush interval.
-        if (BuildConfig.DEBUG) {
+        // In debug, flush immediately so events appear in the Braze dashboard
+        if (BuildConfig.DEBUG && event !is AnalyticsEvent.OrderPlaced) {
             braze.requestImmediateDataFlush()
         }
     }
@@ -1362,6 +1481,7 @@ class BrazeTracker @Inject constructor(
         properties.email?.let              { user.setEmail(it) }
         properties.phone?.let              { user.setPhoneNumber(it) }
         properties.country?.let            { user.setCountry(it) }
+        user.setLanguage(java.util.Locale.getDefault().language)
         // First/last name — use dedicated fields if present, fall back to splitting full name
         val firstName = properties.firstName ?: properties.name?.substringBefore(" ")
         val lastName  = properties.lastName  ?: properties.name?.substringAfter(" ", "")?.ifEmpty { null }
@@ -1436,8 +1556,8 @@ class BrazeTracker @Inject constructor(
         user.setPushNotificationSubscriptionType(subType)
         user.setEmailNotificationSubscriptionType(subType)
         // Channel-level subscription group (push + email + WhatsApp):
-        if (enabled) user.addToSubscriptionGroup(SUBSCRIPTION_GROUP_ID)
-        else         user.removeFromSubscriptionGroup(SUBSCRIPTION_GROUP_ID)
+        if (enabled) user.addToSubscriptionGroup(WHATSAPP_GROUP_ID)
+        else         user.removeFromSubscriptionGroup(WHATSAPP_GROUP_ID)
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
@@ -1458,8 +1578,8 @@ class BrazeTracker @Inject constructor(
         }
 
     /** Single-item product JSON for ecommerce.cart_updated (add action). */
-    private fun AnalyticsEvent.AddToCart.toProductJson(): org.json.JSONObject =
-        org.json.JSONObject().apply {
+    private fun AnalyticsEvent.AddToCart.toProductJson(): JSONObject =
+        JSONObject().apply {
             put("product_id",   productId)
             put("product_name", productName)
             put("variant_id",   productId)   // no variant in our model; use productId as fallback
@@ -1472,7 +1592,7 @@ class BrazeTracker @Inject constructor(
     private fun List<EcommerceItem>.toProductJsonArray(): org.json.JSONArray =
         org.json.JSONArray().apply {
             forEach { item ->
-                put(org.json.JSONObject().apply {
+                put(JSONObject().apply {
                     put("product_id",   item.itemId)
                     put("product_name", item.itemName)
                     put("variant_id",   item.itemId)  // use itemId as variant_id fallback
@@ -1489,7 +1609,7 @@ class BrazeTracker @Inject constructor(
     companion object {
         private const val ENDPOINT             = "sdk.fra-01.braze.eu"
         private const val CURRENCY_IDR         = "IDR"
-        private const val SUBSCRIPTION_GROUP_ID = "36bba8fd-c772-4ca2-8a83-81bbc411501d"
+        private const val WHATSAPP_GROUP_ID = "36bba8fd-c772-4ca2-8a83-81bbc411501d"
     }
 }
 
@@ -1501,6 +1621,10 @@ class OneSignalTracker @Inject constructor(
 
     override val name = "OneSignal"
 
+    private var consentEnabled = true
+    private var lastEmail: String? = null
+    private var lastPhone: String? = null
+
     override suspend fun initialize() {
         com.onesignal.OneSignal.initWithContext(context, BuildConfig.ONESIGNAL_APP_ID)
         if (BuildConfig.DEBUG) {
@@ -1511,14 +1635,23 @@ class OneSignalTracker @Inject constructor(
     override fun track(event: AnalyticsEvent) {
         // OneSignal is push-focused — log outcomes for conversion attribution.
         when (event) {
-            is AnalyticsEvent.OrderPlaced     ->
+            is AnalyticsEvent.OrderPlaced        ->
                 com.onesignal.OneSignal.Session.addOutcomeWithValue("purchase", event.totalValue.toFloat())
-            is AnalyticsEvent.AddToCart       ->
+            is AnalyticsEvent.AddToCart          ->
                 com.onesignal.OneSignal.Session.addOutcome("add_to_cart")
-            is AnalyticsEvent.CheckoutStarted ->
+            is AnalyticsEvent.CheckoutStarted    ->
                 com.onesignal.OneSignal.Session.addOutcome("begin_checkout")
-            is AnalyticsEvent.UserRegistered  ->
+            is AnalyticsEvent.UserRegistered     ->
                 com.onesignal.OneSignal.Session.addOutcome("sign_up")
+            is AnalyticsEvent.PushReceived       ->
+                com.onesignal.OneSignal.Session.addOutcome("push_received")
+            is AnalyticsEvent.PushTapped         ->
+                com.onesignal.OneSignal.Session.addOutcome("push_opened")
+            is AnalyticsEvent.ProductWishlisted  ->
+                if (event.added) com.onesignal.OneSignal.Session.addOutcome("wishlist_add")
+            is AnalyticsEvent.PushPermissionGranted ->
+                if (event.granted) com.onesignal.OneSignal.User.pushSubscription.optIn()
+                else               com.onesignal.OneSignal.User.pushSubscription.optOut()
             else -> Unit
         }
     }
@@ -1529,11 +1662,16 @@ class OneSignalTracker @Inject constructor(
         com.onesignal.OneSignal.login(userId)
 
         val user = com.onesignal.OneSignal.User
-        // First-class OneSignal identity fields for channel targeting
-        properties.email?.let { user.addEmail(it) }
-        properties.phone?.let { user.addSms(it) }
+        // Cache identity fields so setAnalyticsConsent can re-add / remove them.
+        properties.email?.let { lastEmail = it }
+        properties.phone?.let { lastPhone = it }
+        // Only register email/SMS channels when consent is active.
+        if (consentEnabled) {
+            lastEmail?.let { user.addEmail(it) }
+            lastPhone?.let { user.addSms(it) }
+        }
 
-        val tags = buildMap<String, String> {
+        val tags = buildMap {
             properties.name?.let              { put("name",               it) }
             properties.firstName?.let         { put("first_name",         it) }
             properties.lastName?.let          { put("last_name",          it) }
@@ -1543,18 +1681,35 @@ class OneSignalTracker @Inject constructor(
             properties.orderCount?.let        { put("order_count",        it.toString()) }
             properties.lifetimeValue?.let     { put("lifetime_value",     it.toString()) }
             properties.preferredCategory?.let { put("preferred_category", it) }
-            properties.deviceId?.let          { put("c_device_id",        it) }
-            properties.advertisingId?.let     { put("advertising_id",     it) }
+            // c_device_id and advertising_id omitted — OneSignal tracks device
+            // identity natively; including them as tags wastes tag-key quota.
         }
         if (tags.isNotEmpty()) user.addTags(tags)
     }
 
     override fun reset() {
+        // Remove tags before logout so they don't bleed into the next user's profile
+        // if a different account signs in on the same device.
+        com.onesignal.OneSignal.User.removeTags(
+            listOf("name", "first_name", "last_name", "country", "login_method",
+                   "has_purchased", "order_count", "lifetime_value", "preferred_category")
+        )
+        lastEmail = null
+        lastPhone = null
         com.onesignal.OneSignal.logout()
     }
 
     override fun setAnalyticsConsent(enabled: Boolean) {
-        if (enabled) com.onesignal.OneSignal.User.pushSubscription.optIn()
-        else         com.onesignal.OneSignal.User.pushSubscription.optOut()
+        consentEnabled = enabled
+        val user = com.onesignal.OneSignal.User
+        if (enabled) {
+            user.pushSubscription.optIn()
+            lastEmail?.let { user.addEmail(it) }
+            lastPhone?.let { user.addSms(it) }
+        } else {
+            user.pushSubscription.optOut()
+            lastEmail?.let { user.removeEmail(it) }
+            lastPhone?.let { user.removeSms(it) }
+        }
     }
 }

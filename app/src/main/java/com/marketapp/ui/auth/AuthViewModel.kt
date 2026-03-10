@@ -8,6 +8,7 @@ import com.marketapp.analytics.AnalyticsManager
 import com.marketapp.analytics.PerformanceMonitor
 import com.marketapp.analytics.UserProperties
 import com.marketapp.data.repository.AuthRepository
+import com.marketapp.data.repository.DeviceInfoRepository
 import com.marketapp.data.repository.UserStatsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -29,6 +30,7 @@ class AuthViewModel @Inject constructor(
     private val authRepository: AuthRepository,
     private val analyticsManager: AnalyticsManager,
     private val userStats: UserStatsRepository,
+    private val deviceInfo: DeviceInfoRepository,
     private val perf: PerformanceMonitor
 ) : ViewModel() {
 
@@ -45,15 +47,21 @@ class AuthViewModel @Inject constructor(
         // Identify the user across all trackers whenever auth state changes to logged-in.
         // This covers app restarts where Firebase restores an existing session automatically.
         viewModelScope.launch {
+            // Fetch device IDs once before processing auth state so identify() always
+            // includes deviceId / appSetId / advertisingId from the first call onward.
+            deviceInfo.fetchOnce()
             authState.collect { user ->
                 if (user != null) {
                     if (sessionStartMs == 0L) sessionStartMs = System.currentTimeMillis()
                     analyticsManager.identify(
                         userId = user.uid,
                         properties = UserProperties(
-                            userId = user.uid,
-                            email  = user.email,
-                            name   = user.displayName
+                            userId        = user.uid,
+                            email         = user.email,
+                            name          = user.displayName,
+                            deviceId      = deviceInfo.deviceId,
+                            appSetId      = deviceInfo.appSetId,
+                            advertisingId = deviceInfo.advertisingId
                         )
                     )
                 }
@@ -124,10 +132,13 @@ class AuthViewModel @Inject constructor(
         analyticsManager.identify(
             userId = user.uid,
             properties = UserProperties(
-                userId      = user.uid,
-                email       = user.email,
-                name        = user.displayName,
-                loginMethod = loginMethod
+                userId        = user.uid,
+                email         = user.email,
+                name          = user.displayName,
+                loginMethod   = loginMethod,
+                deviceId      = deviceInfo.deviceId,
+                appSetId      = deviceInfo.appSetId,
+                advertisingId = deviceInfo.advertisingId
             )
         )
     }

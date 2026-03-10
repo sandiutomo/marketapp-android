@@ -94,5 +94,7 @@
     <string name="retry">Retry</string>
 
     <!-- Debug -->
-    <string name="developer_options">Developer Options</string>
+    <string name="debug_trigger_push">Test Push</string>
+    <string name="debug_trigger_banner">Test Banner</string>
+    <string name="debug_trigger_experiment">Test Experiment</string>
 </resources>

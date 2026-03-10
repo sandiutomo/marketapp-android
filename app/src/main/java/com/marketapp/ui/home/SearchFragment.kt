@@ -44,7 +44,7 @@ class SearchFragment : Fragment() {
             findNavController().navigate(
                 R.id.action_search_to_product,
                 android.os.Bundle().apply {
-                    putInt("productId", product.id)
+                    putString("productId", product.id.toString())
                     putString("source", "search")
                 }
             )

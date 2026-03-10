@@ -1,15 +1,23 @@
 package com.marketapp.analytics
 
+import com.marketapp.data.model.Cart
+
 data class EcommerceItem(
     val itemId: String,
     val itemName: String,
     val price: Double,
     val quantity: Int,
-    val category: String? = null,
-    val brand: String?    = null,
-    val variant: String?  = null,
-    val discount: Double? = null,
-    val index: Int?       = null    // position in list — required for view_item_list / select_item
+    val category: String?     = null,
+    val brand: String?        = null,
+    val variant: String?      = null,
+    val discount: Double?     = null,
+    val index: Int?           = null,     // position in list — required for view_item_list / select_item
+    // Item-scoped context — carried per-item so GA4 can attribute each line item
+    // to the list it came from and the seller/store it belongs to.
+    val affiliation: String?  = null,     // seller or store name (marketplace attribution)
+    val coupon: String?       = null,     // item-level discount coupon code
+    val itemListId: String?   = null,     // list the item was presented in (e.g. "home_recommended")
+    val itemListName: String? = null      // human-readable list name  (e.g. "Recommended for You")
 )
 
 /**
@@ -188,12 +196,13 @@ sealed class AnalyticsEvent(val name: String) {
 
     object AddressAdded      : AnalyticsEvent("address_added")
     object PaymentMethodAdded: AnalyticsEvent("payment_method_added")  // profile — saving a card
+    object Subscribe         : AnalyticsEvent("subscribe")             // user opts in to analytics tracking
 
     // ── Campaign / Deep Link ──────────────────────────────────────────────────
     data class CampaignOpened(
         val source: String,
-        val medium: String,
-        val campaign: String,
+        val medium: String?   = null,
+        val campaign: String? = null,
         val term: String?     = null,
         val content: String?  = null,
         val deepLink: String? = null
@@ -207,6 +216,13 @@ sealed class AnalyticsEvent(val name: String) {
     // ── Error / Debug ─────────────────────────────────────────────────────────
     data class ErrorOccurred(val screen: String, val code: String, val message: String) : AnalyticsEvent("error_occurred")
 
+    // ── QA / Testing (DEBUG builds only) ──────────────────────────────────────
+    // Fire these from the profile debug panel to trigger action-based campaigns
+    // in Braze (Action-Based Delivery) and OneSignal (In-App triggers).
+    object TriggerPushTest       : AnalyticsEvent("trigger_for_pushnotif")
+    object TriggerBannerTest     : AnalyticsEvent("trigger_for_banner")
+    object TriggerExperimentTest : AnalyticsEvent("trigger_for_experiment")
+
     /**
      * Flat property map for PostHog, Clarity, and generic trackers.
      * GA4 parameter names are used wherever a standard exists.
@@ -214,7 +230,8 @@ sealed class AnalyticsEvent(val name: String) {
      */
     fun toProperties(): Map<String, Any> = when (this) {
         is AppOpen, is AppBackground,
-        is AddressAdded, is PaymentMethodAdded -> emptyMap()
+        is AddressAdded, is PaymentMethodAdded,
+        is Subscribe -> emptyMap()
 
         is ScreenView            -> mapOf("screen_name" to screenName, "screen_class" to screenClass)
         is OnboardingCompleted   -> mapOf("method" to method)
@@ -356,15 +373,35 @@ sealed class AnalyticsEvent(val name: String) {
         is UserSignedOut         -> mapOf("session_duration_ms" to sessionDuration)
         is UserRegistered        -> mapOf("method" to method)
 
-        is CampaignOpened        -> mapOf(
-            "source" to source, "medium" to medium, "campaign" to campaign,
-            "term" to (term ?: ""), "content" to (content ?: ""), "deep_link" to (deepLink ?: "")
-        )
+        is CampaignOpened        -> buildMap {
+            put("source", source)
+            medium?.let   { put("medium",    it) }
+            campaign?.let { put("campaign",  it) }
+            term?.let     { put("term",      it) }
+            content?.let  { put("content",   it) }
+            deepLink?.let { put("deep_link", it) }
+        }
         is PushReceived          -> mapOf("campaign_id" to (campaignId ?: ""), "type" to type)
         is PushTapped            -> mapOf("campaign_id" to (campaignId ?: ""), "deep_link" to (deepLink ?: ""))
         is PushPermissionGranted -> mapOf("granted" to granted)
         is ErrorOccurred         -> mapOf("screen" to screen, "code" to code, "message" to message)
+
+        is TriggerPushTest,
+        is TriggerBannerTest,
+        is TriggerExperimentTest -> emptyMap()
     }
+}
+
+// ── Shared cart conversion ────────────────────────────────────────────────────
+
+fun Cart.toEcommerceItems(): List<EcommerceItem> = items.map {
+    EcommerceItem(
+        itemId   = it.product.id.toString(),
+        itemName = it.product.title,
+        price    = it.product.priceIdr,
+        quantity = it.quantity,
+        category = it.product.category
+    )
 }
 
 // ── Private helper ─────────────────────────────────────────────────────────────

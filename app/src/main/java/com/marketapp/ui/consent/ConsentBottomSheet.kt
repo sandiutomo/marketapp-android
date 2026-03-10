@@ -78,6 +78,10 @@ class ConsentBottomSheet : BottomSheetDialogFragment() {
         // Track that the user completed onboarding/consent.
         analyticsManager.track(AnalyticsEvent.OnboardingCompleted("consent"))
 
+        // Fire Subscribe when the user explicitly opts in — maps to Facebook's
+        // standard Subscribe conversion event for audience building.
+        if (analyticsOn) analyticsManager.track(AnalyticsEvent.Subscribe)
+
         // Handle notification permission.
         when {
             !notifyToggled -> {

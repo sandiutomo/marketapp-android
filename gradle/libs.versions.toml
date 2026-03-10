@@ -1,6 +1,6 @@
 [versions]
 # Build
-agp                 = "8.7.3"
+agp                 = "8.13.2"
 kotlin              = "2.1.0"
 
 # SDK
@@ -38,6 +38,12 @@ coil                = "2.7.0"
 # DI
 hilt                = "2.54"
 
+# Test
+junit               = "4.13.2"
+mockk               = "1.13.14"
+androidxTestExt     = "1.2.1"
+espresso            = "3.6.1"
+
 # DataStore
 datastore           = "1.1.1"
 
@@ -48,6 +54,8 @@ splashscreen        = "1.0.1"
 # Firebase (Analytics + Crashlytics + FCM + Auth + Firestore)
 firebaseBom         = "33.7.0"
 playServicesAuth    = "21.3.0"
+playServicesAppset  = "16.1.0"
+playServicesAdsId   = "18.1.0"
 
 # AppsFlyer
 appsflyer             = "6.15.2"
@@ -131,6 +139,15 @@ coil                        = { group = "io.coil-kt",                name = "coi
 # DI
 hilt-android                = { group = "com.google.dagger",         name = "hilt-android",             version.ref = "hilt"            }
 hilt-compiler               = { group = "com.google.dagger",         name = "hilt-android-compiler",    version.ref = "hilt"            }
+hilt-testing                = { group = "com.google.dagger",         name = "hilt-android-testing",     version.ref = "hilt"            }
+
+# Test
+junit                       = { group = "junit",                     name = "junit",                    version.ref = "junit"           }
+mockk                       = { group = "io.mockk",                  name = "mockk",                    version.ref = "mockk"           }
+mockk-android               = { group = "io.mockk",                  name = "mockk-android",            version.ref = "mockk"           }
+androidx-test-ext           = { group = "androidx.test.ext",         name = "junit-ktx",                version.ref = "androidxTestExt" }
+espresso-core               = { group = "androidx.test.espresso",    name = "espresso-core",            version.ref = "espresso"        }
+coroutines-test             = { group = "org.jetbrains.kotlinx",     name = "kotlinx-coroutines-test",  version.ref = "coroutines"      }
 
 # DataStore
 datastore-prefs             = { group = "androidx.datastore",        name = "datastore-preferences",    version.ref = "datastore"       }
@@ -145,7 +162,9 @@ firebase-config             = { group = "com.google.firebase",       name = "fir
 firebase-auth               = { group = "com.google.firebase",       name = "firebase-auth"                                            }
 firebase-firestore          = { group = "com.google.firebase",       name = "firebase-firestore-ktx"                                   }
 firebase-performance        = { group = "com.google.firebase",       name = "firebase-perf"                                            }
-play-services-auth          = { group = "com.google.android.gms",    name = "play-services-auth",       version.ref = "playServicesAuth"}
+play-services-auth          = { group = "com.google.android.gms",    name = "play-services-auth",          version.ref = "playServicesAuth"  }
+play-services-appset        = { group = "com.google.android.gms",    name = "play-services-appset",        version.ref = "playServicesAppset" }
+play-services-ads-identifier= { group = "com.google.android.gms",    name = "play-services-ads-identifier",version.ref = "playServicesAdsId"  }
 # Firebase In-App Messaging (version managed by firebase-bom)
 firebase-inappmessaging     = { group = "com.google.firebase",       name = "firebase-inappmessaging-display"                          }
 

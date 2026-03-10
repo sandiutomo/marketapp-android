@@ -51,6 +51,9 @@ class AnalyticsManager @Inject constructor(
                     }
                 }.awaitAll()
             }
+            // Print a single session-replay summary table after all trackers have
+            // initialized and recorded their replay decisions.
+            SessionReplayLogger.printSummary()
             // Broadcast session ID after ALL trackers are ready.
             trackers.map { tracker ->
                 async {

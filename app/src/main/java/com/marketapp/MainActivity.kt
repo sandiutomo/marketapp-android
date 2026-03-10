@@ -103,8 +103,8 @@ class MainActivity : AppCompatActivity() {
         analyticsManager.track(
             AnalyticsEvent.CampaignOpened(
                 source   = utmSource,
-                medium   = utmMedium   ?: "",
-                campaign = utmCampaign ?: "",
+                medium   = utmMedium,
+                campaign = utmCampaign,
                 term     = utmTerm,
                 content  = utmContent,
                 deepLink = uri.toString()
@@ -142,8 +142,8 @@ class MainActivity : AppCompatActivity() {
             analyticsManager.track(
                 AnalyticsEvent.CampaignOpened(
                     source   = utmSource,
-                    medium   = utmMedium   ?: "",
-                    campaign = utmCampaign ?: "",
+                    medium   = utmMedium,
+                    campaign = utmCampaign,
                     term     = utmTerm,
                     content  = utmContent,
                     deepLink = uri.toString()
@@ -188,7 +188,7 @@ class MainActivity : AppCompatActivity() {
             AnalyticsEvent.CampaignOpened(
                 source   = utmSource,
                 medium   = intent.getStringExtra("utm_medium")   ?: "push",
-                campaign = intent.getStringExtra("utm_campaign") ?: fcmLabel ?: "",
+                campaign = intent.getStringExtra("utm_campaign") ?: fcmLabel,
                 term     = intent.getStringExtra("utm_term"),
                 content  = intent.getStringExtra("utm_content"),
                 deepLink = deepLink
@@ -264,6 +264,8 @@ class MainActivity : AppCompatActivity() {
         FirebaseMessaging.getInstance().token.addOnSuccessListener { token ->
             Log.d("FCM_DEBUG", "FCM Registration Token: $token")
         }
+        val afid = com.appsflyer.AppsFlyerLib.getInstance().getAppsFlyerUID(this)
+        Log.d("AF_DEBUG", "AppsFlyer ID (AFID): $afid")
     }
 
     private fun setupNavigation() {

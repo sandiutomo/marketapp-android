@@ -32,13 +32,13 @@ class ProductDetailViewModel @Inject constructor(
     private val _addedToCart = MutableStateFlow(false)
     val addedToCart: StateFlow<Boolean> = _addedToCart
 
-    fun loadProduct(id: Int, source: String) {
+    fun loadProduct(id: String, source: String) {
         // Guard against re-firing on configuration change (ViewModel survives, Fragment recreates).
         if (_product.value is UiState.Success) return
         viewModelScope.launch {
             perf.trace("product_detail_load") { trace ->
                 trace.putAttribute("source", source)
-                repository.getProduct(id)
+                repository.getProduct(id.toIntOrNull() ?: 0)
                     .onSuccess {
                         trace.putAttribute("product_id",       it.id.toString())
                         trace.putAttribute("product_category", it.category)

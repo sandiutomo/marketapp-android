@@ -1,6 +1,12 @@
 package com.marketapp.analytics
 
+import android.app.Activity
+import android.app.Application
 import android.content.Context
+import android.os.Bundle
+import android.view.View
+import android.view.ViewGroup
+import android.widget.ImageView
 import com.amplitude.android.Amplitude
 import com.amplitude.android.AutocaptureOption
 import com.amplitude.android.Configuration
@@ -9,9 +15,12 @@ import com.amplitude.android.InteractionsOptions
 import com.amplitude.android.RageClickOptions
 import com.amplitude.android.events.Identify
 import com.amplitude.android.plugins.SessionReplayPlugin
+import com.amplitude.common.Logger
 import com.marketapp.BuildConfig
 import com.microsoft.clarity.Clarity
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -25,45 +34,95 @@ class AmplitudeTracker @Inject constructor(
 
     private lateinit var amplitude: Amplitude
 
+    // Pre-decided at initialize() so the same value is used in track() when
+    // the SessionReplayPlugin is lazily attached after the session starts.
+    private var sessionRecorded = false
+    private var sessionReplayAttached = false
+
     override suspend fun initialize() {
-        amplitude = Amplitude(
-            Configuration(
-                apiKey  = BuildConfig.AMPLITUDE_API_KEY,
-                context = context,
-                locationListening = true,
-                // Flush pending events when the app goes to background so they aren't
-                // lost if the user doesn't reopen the app before the next auto-flush.
-                flushEventsOnClose = true,
-                // Auto-track session start/end, app install/update/open, deep links, and
-                // frustration interactions (rage clicks + dead clicks). screenViews excluded
-                // because we fire AnalyticsEvent.ScreenView manually for consistent naming.
-                // Requires analytics-android 1.22.0+.
-                autocapture = setOf(
-                    AutocaptureOption.SESSIONS,
-                    AutocaptureOption.APP_LIFECYCLES,
-                    AutocaptureOption.DEEP_LINKS,
-                    AutocaptureOption.FRUSTRATION_INTERACTIONS
-                ),
-                // Frustration interaction configuration:
-                //   RageClick  — ≥4 rapid taps on the same element within 1 second
-                //   DeadClick  — tap on an interactive element with no visible reaction within 3 s
-                interactionsOptions = InteractionsOptions(
-                    rageClick = RageClickOptions(enabled = true),
-                    deadClick = DeadClickOptions(enabled = true)
-                ),
-                // Treat gaps ≥ 5 minutes as a new session (standard mobile convention).
-                minTimeBetweenSessionsMillis = 5 * 60 * 1_000L
+        sessionRecorded = Math.random() < 0.4
+        SessionReplayLogger.record("Amplitude", sessionRecorded, debugPct = 40, prodPct = 40)
+
+        withContext(Dispatchers.Main) {
+            amplitude = Amplitude(
+                Configuration(
+                    apiKey  = BuildConfig.AMPLITUDE_API_KEY,
+                    context = context,
+                    locationListening = true,
+                    // Disable remote config in debug so the locally-set SessionReplayPlugin
+                    // sampleRate = 1.0 is not overridden by the dashboard value (0.1).
+                    enableAutocaptureRemoteConfig = !BuildConfig.DEBUG,
+                    // Flush pending events when the app goes to background so they aren't
+                    // lost if the user doesn't reopen the app before the next auto-flush.
+                    flushEventsOnClose = true,
+                    // Auto-track session start/end, app install/update/open, deep links, and
+                    // frustration interactions (rage clicks + dead clicks).
+                    autocapture = setOf(
+                        AutocaptureOption.SESSIONS,
+                        AutocaptureOption.APP_LIFECYCLES,
+                        AutocaptureOption.DEEP_LINKS,
+                        AutocaptureOption.FRUSTRATION_INTERACTIONS
+                    ),
+                    // Frustration interaction configuration:
+                    //   RageClick  — ≥4 rapid taps on the same element within 1 second
+                    //   DeadClick  — tap on an interactive element with no visible reaction within 3 s
+                    interactionsOptions = InteractionsOptions(
+                        rageClick = RageClickOptions(enabled = true),
+                        deadClick = DeadClickOptions(enabled = true)
+                    ),
+                    minTimeBetweenSessionsMillis = 5 * 60 * 1_000L
+                )
             )
-        )
-        // Session Replay: 20% sampling in debug, 40% in production.
-        amplitude.add(SessionReplayPlugin(sampleRate = if (BuildConfig.DEBUG) 0.2 else 0.4))
-        // Link Clarity recordings to Amplitude sessions for cross-tool correlation.
-        // Clarity.setCustomTag() is safe to call before Clarity finishes initializing.
-        Clarity.setCustomTag("amplitude_session_id", amplitude.sessionId.toString())
+            if (BuildConfig.DEBUG) {
+                amplitude.logger.logMode = Logger.LogMode.DEBUG
+            }
+        }
+        if (sessionRecorded) {
+            (context as Application).registerActivityLifecycleCallbacks(softwareLayerFix)
+        }
+    }
+
+    /**
+     * Traverses the view tree of every resumed Activity and downgrades any
+     * [ImageView] that is not already in software-layer mode.
+     *
+     * Tradeoff: software layers draw on the CPU, which is slightly slower than the
+     * default GPU path. In practice, for normal product-card sizes this is imperceptible.
+     * If you notice jank on a heavy grid screen, call [View.setLayerType] back to
+     * [View.LAYER_TYPE_NONE] on specific views after they are bound.
+     */
+    private val softwareLayerFix = object : Application.ActivityLifecycleCallbacks {
+        override fun onActivityResumed(activity: Activity) =
+            forceSoftwareLayer(activity.window.decorView)
+
+        override fun onActivityCreated(a: Activity, b: Bundle?) = Unit
+        override fun onActivityStarted(a: Activity)             = Unit
+        override fun onActivityPaused(a: Activity)              = Unit
+        override fun onActivityStopped(a: Activity)             = Unit
+        override fun onActivitySaveInstanceState(a: Activity, b: Bundle) = Unit
+        override fun onActivityDestroyed(a: Activity)           = Unit
+    }
+
+    private fun forceSoftwareLayer(view: View) {
+        if (view is ImageView && view.layerType != View.LAYER_TYPE_SOFTWARE) {
+            view.setLayerType(View.LAYER_TYPE_SOFTWARE, null)
+        }
+        if (view is ViewGroup) {
+            for (i in 0 until view.childCount) forceSoftwareLayer(view.getChildAt(i))
+        }
     }
 
     override fun track(event: AnalyticsEvent) {
-        // Strip list values (items arrays) — Amplitude event properties must be flat key/value
+        // Attach the SessionReplayPlugin the first time we have a valid session.
+        // By the time the first event is tracked, the Activity is on screen and
+        // Amplitude has established a session (sessionId is a positive timestamp).
+        if (!sessionReplayAttached && sessionRecorded && amplitude.sessionId > 0) {
+            sessionReplayAttached = true
+            amplitude.add(SessionReplayPlugin(sampleRate = 1.0))
+            // Update Clarity now that we have the real session ID.
+            Clarity.setCustomTag("amplitude_session_id", amplitude.sessionId.toString())
+        }
+
         val props = event.toProperties().filterValues { it !is List<*> }
 
         when (event) {
@@ -82,6 +141,7 @@ class AmplitudeTracker @Inject constructor(
                     amplitude.revenue(revenue)
                 }
                 amplitude.track(event.name, props)
+                amplitude.flush()
             }
             is AnalyticsEvent.OrderRefunded -> {
                 val revenue = com.amplitude.android.events.Revenue().apply {
@@ -127,14 +187,19 @@ class AmplitudeTracker @Inject constructor(
             properties.deviceId?.let          { setOnce("c_device_id",    it) }
             properties.appSetId?.let          { setOnce("app_set_id",     it) }
             properties.advertisingId?.let     { setOnce("advertising_id", it) }
-            // c_user_id mirrors userId for platforms where "user_id" is reserved.
             set("c_user_id", properties.userId)
             properties.customAttributes.forEach { (k, v) -> set(k, v.toString()) }
         }
         amplitude.identify(identify)
     }
 
+    override fun maskView(view: View) {
+        // Static companion — no plugin instance needed.
+        SessionReplayPlugin.mask(view)
+    }
+
     override fun reset() {
+        sessionReplayAttached = false
         amplitude.reset()
     }
 
@@ -143,7 +208,6 @@ class AmplitudeTracker @Inject constructor(
     }
 
     override fun shutdown() {
-        // Flush all queued events before the process exits.
         amplitude.flush()
     }
 }
