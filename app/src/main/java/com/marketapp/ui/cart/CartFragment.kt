@@ -94,7 +94,11 @@ class CartAdapter(
 
     inner class ViewHolder(private val b: ItemCartBinding) : RecyclerView.ViewHolder(b.root) {
         fun bind(item: CartItem) {
-            b.imgProduct.load(item.product.image) { crossfade(true) }
+            b.imgProduct.load(item.product.image) {
+                crossfade(200)
+                memoryCachePolicy(coil.request.CachePolicy.ENABLED)
+                diskCachePolicy(coil.request.CachePolicy.ENABLED)
+            }
             b.tvTitle.text    = item.product.shortTitle
             b.tvPrice.text    = item.formattedSubtotal
             b.tvQuantity.text = item.quantity.toString()

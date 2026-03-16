@@ -1,9 +1,12 @@
 package com.marketapp.analytics
 
 import android.content.Context
+import com.appsflyer.AppsFlyerLib
 import com.marketapp.BuildConfig
 import com.segment.analytics.kotlin.android.Analytics as segmentAnalytics
 import com.segment.analytics.kotlin.core.Analytics
+import com.segment.analytics.kotlin.core.BaseEvent
+import com.segment.analytics.kotlin.core.platform.Plugin
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonPrimitive
@@ -12,7 +15,9 @@ import kotlinx.serialization.json.put
 import javax.inject.Inject
 import javax.inject.Singleton
 
-/** Segment Analytics tracker.
+/**
+ * Segment Analytics tracker.
+ * Standalone: full Segment Ecommerce Spec event mapping.
  * Event mapping follows the Segment Ecommerce Spec:
  *   https://segment.com/docs/connections/spec/ecommerce/v2/
  */
@@ -32,6 +37,9 @@ class SegmentTracker @Inject constructor(
             flushAt                         = 3
             flushInterval                   = 10
         }
+        // Append cross-SDK identifiers so every Segment event can be joined with
+        // Amplitude sessions and AppsFlyer attribution in a data warehouse.
+        analytics.add(CrossSdkEnrichmentPlugin(context))
     }
 
     override fun track(event: AnalyticsEvent) {
@@ -185,6 +193,34 @@ class SegmentTracker @Inject constructor(
         put("price",      price)
         put("quantity",   quantity)
         category?.let { put("category", it) }
+    }
+
+    // ── Cross-SDK enrichment ────────────────────────────────────────────────────
+    /**
+     * Enrichment plugin that appends Amplitude session ID and AppsFlyer UID to
+     * every event's context before it leaves the device. This lets analysts join
+     * Segment events with Amplitude session replays and AppsFlyer attribution in
+     * a data warehouse (BigQuery, Snowflake, Redshift) without a custom identity
+     * graph.
+     */
+    private class CrossSdkEnrichmentPlugin(
+        private val context: Context
+    ) : Plugin {
+        override val type = Plugin.Type.Enrichment
+        override lateinit var analytics: Analytics
+
+        override fun execute(event: BaseEvent): BaseEvent? {
+            val sessionId = AmplitudeTracker.sessionId
+            val afUid     = runCatching { AppsFlyerLib.getInstance().getAppsFlyerUID(context) }.getOrNull()
+            if (sessionId <= 0 && afUid.isNullOrEmpty()) return event
+            event.context = buildJsonObject {
+                // Preserve all existing context fields.
+                event.context.entries.forEach { (k, v) -> put(k, v) }
+                if (sessionId > 0) put("amplitude_session_id", sessionId)
+                afUid?.takeIf { it.isNotEmpty() }?.let { put("af_uid", it) }
+            }
+            return event
+        }
     }
 
     private fun Map<String, Any>.toJsonObject() = buildJsonObject {

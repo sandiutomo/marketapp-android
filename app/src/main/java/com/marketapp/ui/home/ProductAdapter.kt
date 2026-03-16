@@ -2,6 +2,7 @@ package com.marketapp.ui.home
 
 import android.view.LayoutInflater
 import android.view.ViewGroup
+import androidx.core.view.isVisible
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
@@ -10,6 +11,7 @@ import com.marketapp.data.model.Product
 import com.marketapp.databinding.ItemProductCardBinding
 
 class ProductAdapter(
+    private val isWishlistEnabled: () -> Boolean = { true },
     private val onClick: (Product, Int) -> Unit
 ) : ListAdapter<Product, ProductAdapter.ViewHolder>(DIFF) {
 
@@ -25,7 +27,12 @@ class ProductAdapter(
             binding.imgProduct.load(product.image) {
                 crossfade(200)
                 allowHardware(true)
+                memoryCachePolicy(coil.request.CachePolicy.ENABLED)
+                diskCachePolicy(coil.request.CachePolicy.ENABLED)
             }
+
+            // Re-read on every bind so RC fetch completing mid-session takes effect.
+            binding.btnWishlist.isVisible = isWishlistEnabled()
 
             binding.root.setOnClickListener { onClick(product, position) }
         }

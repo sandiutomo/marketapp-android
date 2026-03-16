@@ -94,9 +94,10 @@
     <string name="retry">Retry</string>
 
     <!-- Debug -->
-    <string name="debug_trigger_push">Test Push</string>
-    <string name="debug_trigger_banner">Test Banner</string>
-    <string name="debug_trigger_inapp">Test In-App</string>
-    <string name="debug_trigger_content_card">Test Content Card</string>
+    <string name="debug_trigger_push">Push Notifications Trigger</string>
+    <string name="debug_trigger_banner">Banner Trigger</string>
+    <string name="debug_trigger_inapp">In-app Message Trigger</string>
+    <string name="debug_trigger_content_card">Content Cards Trigger</string>
     <string name="debug_trigger_experiment">Test Experiment</string>
+    <string name="debug_clear_braze_cache">Clear Braze Cache</string>
 </resources>

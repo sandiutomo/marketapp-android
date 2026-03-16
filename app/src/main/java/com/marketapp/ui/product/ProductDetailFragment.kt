@@ -15,10 +15,14 @@ import androidx.navigation.fragment.navArgs
 import coil.load
 import com.google.android.material.snackbar.Snackbar
 import com.marketapp.R
+import com.marketapp.config.ExperimentManager
+import com.marketapp.config.FeatureFlag
 import com.marketapp.data.model.Product
 import com.marketapp.data.model.UiState
 import com.marketapp.databinding.FragmentProductDetailBinding
+import androidx.core.view.isVisible
 import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
@@ -30,6 +34,8 @@ class ProductDetailFragment : Fragment() {
     private val viewModel: ProductDetailViewModel by viewModels()
     private val args: ProductDetailFragmentArgs by navArgs()
 
+    @Inject lateinit var experiments: ExperimentManager
+
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?) =
         FragmentProductDetailBinding.inflate(inflater, container, false).also { _binding = it }.root
 
@@ -37,6 +43,7 @@ class ProductDetailFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
 
         setupToolbar()
+        binding.btnWishlist.isVisible = experiments.isEnabled(FeatureFlag.WISHLIST_ENABLED)
         val source = requireArguments().getString("source", "unknown")
         viewModel.loadProduct(args.productId, source)
         observeProduct()
@@ -82,8 +89,9 @@ class ProductDetailFragment : Fragment() {
 
     private fun bindProduct(product: Product) {
         binding.imgProduct.load(product.image) {
-            crossfade(true)
             crossfade(300)
+            memoryCachePolicy(coil.request.CachePolicy.ENABLED)
+            diskCachePolicy(coil.request.CachePolicy.ENABLED)
         }
         binding.tvCategory.text    = product.category
         binding.tvTitle.text       = product.title

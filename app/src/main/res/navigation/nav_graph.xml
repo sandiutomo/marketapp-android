@@ -146,6 +146,9 @@
         android:label="Profile"
         tools:layout="@layout/fragment_profile">
         <deepLink app:uri="marketapp://profile" />
+        <!-- Deep link used by Braze Content Card push campaigns.
+             Navigates to Profile and auto-opens the Content Cards bottom sheet. -->
+        <deepLink app:uri="marketapp://content-cards" />
         <action
             android:id="@+id/action_profile_to_debug"
             app:destination="@id/debugMenuFragment" />

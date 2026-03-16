@@ -4,6 +4,7 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.Toast
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
@@ -37,6 +38,13 @@ class ProfileFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         binding.tvVersion.text = getString(R.string.app_version, BuildConfig.VERSION_NAME)
+
+        // Auto-open content cards when arriving via marketapp://content-cards deep link
+        // (e.g. tapping a Braze "content card ready" push notification).
+        if (requireActivity().intent?.data?.host == "content-cards") {
+            ContentCardsBottomSheet().show(parentFragmentManager, ContentCardsBottomSheet.TAG)
+            requireActivity().intent.data = null  // consume so rotation doesn't reopen
+        }
 
         // Session replay: mask PII views in Mixpanel + Clarity.
         // PostHog masking is handled by android:tag="ph-no-capture" set in the layout XML.
@@ -81,8 +89,14 @@ class ProfileFragment : Fragment() {
                 analyticsManager.track(AnalyticsEvent.TriggerContentCardTest)
                 ContentCardsBottomSheet().show(parentFragmentManager, ContentCardsBottomSheet.TAG)
             }
-            binding.btnTriggerExperiment.setOnClickListener {
-                analyticsManager.track(AnalyticsEvent.TriggerExperimentTest)
+            binding.btnClearBrazeCache.setOnClickListener {
+                val braze = com.braze.Braze.getInstance(requireContext())
+                braze.requestContentCardsRefresh()
+                braze.requestBannersRefresh(listOf("home_banner"))
+                Toast.makeText(requireContext(), "Braze cache refreshed", Toast.LENGTH_SHORT).show()
+            }
+            binding.btnDebugInfo.setOnClickListener {
+                DebugInfoBottomSheet().show(parentFragmentManager, DebugInfoBottomSheet.TAG)
             }
         }
 

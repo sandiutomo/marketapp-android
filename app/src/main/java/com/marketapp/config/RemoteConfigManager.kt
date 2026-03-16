@@ -1,5 +1,6 @@
 package com.marketapp.config
 
+import android.util.Log
 import com.google.firebase.ktx.Firebase
 import com.google.firebase.remoteconfig.ktx.remoteConfig
 import com.google.firebase.remoteconfig.ktx.remoteConfigSettings
@@ -14,19 +15,75 @@ class RemoteConfigManager @Inject constructor() {
     private val rc by lazy {
         Firebase.remoteConfig.also {
             it.setConfigSettingsAsync(remoteConfigSettings {
-                minimumFetchIntervalInSeconds = if (BuildConfig.DEBUG) 0L else 3600L
+                minimumFetchIntervalInSeconds = if (BuildConfig.DEBUG) 30L else 3600L
             })
             it.setDefaultsAsync(R.xml.remote_config_defaults)
         }
     }
 
-    /** Call once on app start — fire-and-forget; next launch uses freshly fetched values. */
-    fun fetchAndActivate() { rc.fetchAndActivate() }
+    @Volatile private var fetchCompleteListener: (() -> Unit)? = null
 
-    fun isEnabled(flag: FeatureFlag): Boolean = rc.getBoolean(flag.key)
-    fun getString(flag: FeatureFlag): String   = rc.getString(flag.key)
-    fun getDouble(flag: FeatureFlag): Double   = rc.getDouble(flag.key)
-    fun getLong(flag: FeatureFlag):   Long     = rc.getLong(flag.key)
+    /**
+     * Register a one-shot callback to be invoked (on the main thread) once the current
+     * [fetchAndActivate] completes. Use this to re-render UI that read a flag before the
+     * fetch finished — a common race on the first launch after a flag change in the console.
+     *
+     * The listener is cleared after it fires, so re-register on each [onViewCreated] if needed.
+     */
+    fun doOnNextFetchComplete(action: () -> Unit) {
+        fetchCompleteListener = action
+    }
+
+    /**
+     * Call once on app start — fire-and-forget; next launch uses freshly fetched values.
+     */
+    fun fetchAndActivate() {
+        rc.fetchAndActivate().addOnCompleteListener { task ->
+            if (BuildConfig.DEBUG) {
+                if (task.isSuccessful) {
+                    Log.d(TAG, "fetch OK — values ${if (task.result) "updated" else "unchanged"}")
+                    logAll()
+                } else {
+                    Log.w(TAG, "fetch FAILED — using cached/default values", task.exception)
+                }
+            }
+            fetchCompleteListener?.invoke()
+            fetchCompleteListener = null
+        }
+    }
+
+    fun isEnabled(flag: FeatureFlag): Boolean = rc.getBoolean(flag.key).also { value ->
+        if (BuildConfig.DEBUG) Log.d(TAG, "${flag.key}=$value")
+    }
+    fun getString(flag: FeatureFlag): String = rc.getString(flag.key).also { value ->
+        if (BuildConfig.DEBUG) Log.d(TAG, "${flag.key}=\"$value\"")
+    }
+    fun getDouble(flag: FeatureFlag): Double = rc.getDouble(flag.key)
+    fun getLong(flag: FeatureFlag):   Long   = rc.getLong(flag.key)
+
+    /**
+     * Raw string value for any flag — used by the debug panel (no logging side effect).
+     */
+    fun rawValue(flag: FeatureFlag): String = rc.getValue(flag.key).asString()
+
+    /**
+     * Dumps every flag's current value to logcat.
+     * Called automatically after a successful fetch.
+     */
+    fun logAll() {
+        if (!BuildConfig.DEBUG) return
+        Log.d(TAG, "┌─── Remote Config Values ────────────────────────────")
+        FeatureFlag.entries.forEach { flag ->
+            val source = rc.getKeysByPrefix("").contains(flag.key)
+            val value  = rc.getValue(flag.key)
+            Log.d(TAG, "│  ${flag.key.padEnd(42)} = ${value.asString()}${if (!source) " [default]" else ""}")
+        }
+        Log.d(TAG, "└─────────────────────────────────────────────────────")
+    }
+
+    companion object {
+        private const val TAG = "RemoteConfig"
+    }
 }
 
 /**
@@ -38,19 +95,16 @@ class RemoteConfigManager @Inject constructor() {
  *
  * 1. KILL SWITCHES  (Boolean flags, default = true)
  *    Disable critical flows instantly without a release:
- *      CHECKOUT_ENABLED           → disable checkout during maintenance/outage
  *      PAYMENT_METHOD_COD_ENABLED → toggle Cash-on-Delivery by region
- *      PAYMENT_METHOD_VA_ENABLED  → toggle Virtual Account payment method
+ *      FIRESTORE_WRITE_ENABLED    → gate Firestore order write under DB load
+ *      AI_ORDER_MESSAGE_ENABLED   → gate Gemini order confirmation message
+ *      AI_SEARCH_ENABLED          → gate Gemini semantic search
  *
  * 2. FEATURE ROLLOUT  (Boolean flags, default = false, use % audience condition)
  *    Deploy to a percentage of users and monitor metrics before full rollout.
  *    In the Firebase Console → Remote Config, create a "Percentage audience"
  *    condition (e.g. random_percentile ≤ 10) and override the flag to true:
- *      HOME_PERSONALISATION        → AI-driven personalised home feed
- *      PRODUCT_RECOMMENDATIONS     → cross-sell / upsell widgets on PDP
- *      REVIEW_MODULE               → product review display + submission
- *      LOYALTY_POINTS_ENABLED      → loyalty/rewards programme
- *      REFERRAL_PROGRAM_ENABLED    → refer-a-friend flow
+ *      AI_PRODUCT_SORTING_ENABLED  → AI-ranked home feed via Gemini
  *
  * 3. BUSINESS CONFIGURATION VALUES  (Numeric/Boolean flags)
  *    Tune business rules without a code change or re-release:
@@ -62,7 +116,6 @@ class RemoteConfigManager @Inject constructor() {
  * 4. UX / MERCHANDISING  (Boolean flags)
  *    Control banners and UI widgets from the dashboard:
  *      SHOW_PROMOTIONS_BANNER     → seasonal promo banner on the home screen
- *      FLASH_SALE_BANNER_ENABLED  → limited-time flash-sale banner
  *      SEARCH_AUTOCOMPLETE        → live autocomplete in the search bar
  *      WISHLIST_ENABLED           → heart/wishlist button on product cards
  *
@@ -81,26 +134,21 @@ class RemoteConfigManager @Inject constructor() {
  * ─────────────────────────────────────────────────────────────────────────────
  */
 enum class FeatureFlag(val key: String) {
-
-    // ── UX / Merchandising ────────────────────────────────────────────────────
+    // UX / Merchandising ──────────────────────────────────────────────────────────────────────────
     SHOW_PROMOTIONS_BANNER      ("show_promotions_banner"),
-    FLASH_SALE_BANNER_ENABLED   ("flash_sale_banner_enabled"),
     SEARCH_AUTOCOMPLETE         ("search_autocomplete_enabled"),
     WISHLIST_ENABLED            ("wishlist_enabled"),
 
-    // ── Kill Switches ─────────────────────────────────────────────────────────
-    CHECKOUT_ENABLED            ("checkout_enabled"),
-    PAYMENT_METHOD_COD_ENABLED  ("payment_method_cod_enabled"),
-    PAYMENT_METHOD_VA_ENABLED   ("payment_method_va_enabled"),
+    // Kill Switches ───────────────────────────────────────────────────────────────────────────────
+    PAYMENT_METHOD_COD_ENABLED       ("payment_method_cod_enabled"),
+    FIRESTORE_WRITE_ENABLED          ("firestore_write_enabled"),
+    AI_ORDER_MESSAGE_ENABLED         ("ai_order_message_enabled"),
+    AI_SEARCH_ENABLED                ("ai_search_enabled"),
 
-    // ── Feature Rollouts ──────────────────────────────────────────────────────
-    HOME_PERSONALISATION        ("home_personalisation_enabled"),
-    PRODUCT_RECOMMENDATIONS     ("product_recommendations_enabled"),
-    REVIEW_MODULE               ("review_module_enabled"),
-    LOYALTY_POINTS_ENABLED      ("loyalty_points_enabled"),
-    REFERRAL_PROGRAM_ENABLED    ("referral_program_enabled"),
+    // Feature Rollouts ────────────────────────────────────────────────────────────────────────────
+    AI_PRODUCT_SORTING_ENABLED       ("ai_product_sorting_enabled"),
 
-    // ── Business Configuration Values ────────────────────────────────────────
+    // Business Configuration Values ───────────────────────────────────────────────────────────────
     CART_ITEM_LIMIT             ("cart_item_limit"),
     FREE_SHIPPING_THRESHOLD_IDR ("free_shipping_threshold_idr"),
     MINIMUM_ORDER_VALUE_IDR     ("minimum_order_value_idr"),

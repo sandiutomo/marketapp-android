@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Primary — iOS dark-mode blue -->
+    <color name="primary">#0A84FF</color>
+    <color name="primary_dark">#0056CC</color>
+    <color name="primary_light">#1A2E4A</color>
+
+    <!-- Neutrals — iOS dark system grays -->
+    <color name="white">#FFFFFF</color>
+    <color name="background">#000000</color>
+    <color name="surface">#1C1C1E</color>
+    <color name="surface_elevated">#2C2C2E</color>
+
+    <color name="gray_1">#8E8E93</color>
+    <color name="gray_2">#636366</color>
+    <color name="gray_3">#48484A</color>
+    <color name="gray_4">#38383A</color>
+    <color name="gray_5">#3A3A3C</color>
+    <color name="image_background">#F0F0F0</color>
+    <color name="gray_6">#1C1C1E</color>
+
+    <!-- Text -->
+    <color name="text_primary">#FFFFFF</color>
+    <color name="text_secondary">#AEAEB2</color>
+    <color name="text_tertiary">#6C6C70</color>
+
+    <!-- Semantic -->
+    <color name="success">#30D158</color>
+    <color name="warning">#FF9F0A</color>
+    <color name="error">#FF453A</color>
+    <color name="badge">#FF453A</color>
+
+    <!-- Status bar / Nav -->
+    <color name="status_bar">#000000</color>
+    <color name="nav_bar">#000000</color>
+
+    <!-- Bottom Nav -->
+    <color name="bottom_nav_selected">#0A84FF</color>
+    <color name="bottom_nav_unselected">#636366</color>
+</resources>

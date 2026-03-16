@@ -34,11 +34,11 @@ data class EcommerceItem(
  * AppsFlyer AFInAppEventType, Clarity tags) lives in each [AnalyticsTracker].
  */
 sealed class AnalyticsEvent(val name: String) {
-    // ── App Lifecycle ─────────────────────────────────────────────────────────
+    // App Lifecycle ───────────────────────────────────────────────────────────────────────────────
     object AppOpen      : AnalyticsEvent("app_open")
     object AppBackground: AnalyticsEvent("app_background")
 
-    // ── Screen Tracking ───────────────────────────────────────────────────────
+    // Screen Tracking ─────────────────────────────────────────────────────────────────────────────
     // GA4: screen_view
     data class ScreenView(val screenName: String, val screenClass: String) : AnalyticsEvent("screen_view")
 
@@ -223,7 +223,6 @@ sealed class AnalyticsEvent(val name: String) {
     object TriggerBannerTest      : AnalyticsEvent("trigger_for_banner")
     object TriggerInAppTest       : AnalyticsEvent("trigger_for_inapp")
     object TriggerContentCardTest : AnalyticsEvent("trigger_for_content_card")
-    object TriggerExperimentTest  : AnalyticsEvent("trigger_for_experiment")
 
     /**
      * Flat property map for PostHog, Clarity, and generic trackers.
@@ -391,8 +390,7 @@ sealed class AnalyticsEvent(val name: String) {
         is TriggerPushTest,
         is TriggerBannerTest,
         is TriggerInAppTest,
-        is TriggerContentCardTest,
-        is TriggerExperimentTest -> emptyMap()
+        is TriggerContentCardTest -> emptyMap()
     }
 }
 

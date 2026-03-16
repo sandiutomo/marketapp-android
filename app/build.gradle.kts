@@ -132,6 +132,7 @@ dependencies {
 
     // ── Image ────────────────────────────────────────────────────────────────
     implementation(libs.coil)
+    implementation(libs.shimmer)
 
     // ── DI ───────────────────────────────────────────────────────────────────
     implementation(libs.hilt.android)
@@ -148,6 +149,7 @@ dependencies {
     implementation(libs.firebase.config)
     implementation(libs.firebase.auth)
     implementation(libs.firebase.firestore)
+    implementation(libs.firebase.ai)
     implementation(libs.firebase.performance)
     implementation(libs.firebase.inappmessaging)
     implementation(libs.play.services.auth)
@@ -165,6 +167,9 @@ dependencies {
 
     implementation(libs.amplitude)
     implementation(libs.amplitude.experiment)
+    implementation(libs.amplitude.engagement) {
+        exclude(group = "com.amplitude", module = "analytics-core")
+    }
     implementation(libs.amplitude.session.replay) {
         // analytics-android bundles analytics-core internally; exclude the standalone
         // analytics-core transitive dep to avoid duplicate class errors at build time.

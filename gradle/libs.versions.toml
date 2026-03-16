@@ -34,6 +34,7 @@ okhttp              = "4.12.0"
 
 # Image
 coil                = "2.7.0"
+shimmer             = "0.5.0"
 
 # DI
 hilt                = "2.54"
@@ -50,9 +51,9 @@ datastore           = "1.1.1"
 # Splash Screen
 splashscreen        = "1.0.1"
 
-# MARTECH ─────────────────────────────────────────────────────────────────
+# Martech SDK ─────────────────────────────────────────────────────────────────────────────────
 # Firebase (Analytics + Crashlytics + FCM + Auth + Firestore)
-firebaseBom         = "33.7.0"
+firebaseBom         = "33.14.0"
 playServicesAuth    = "21.3.0"
 playServicesAppset  = "16.1.0"
 playServicesAdsId   = "18.1.0"
@@ -72,6 +73,7 @@ mixpanelSessionReplay    = "1.0.6"
 amplitude                = "1.26.0"   # 1.22.0+ required for autocapture + frustrationInteractions
 amplitudeSessionReplay   = "0.24.1"
 amplitudeExperiment      = "1.13.1"
+amplitudeEngagement      = "3.+"      # 3.x targets analytics-android 1.x
 
 # Segment
 segment             = "1.20.0"
@@ -82,15 +84,15 @@ statsig             = "4.41.0"
 # Microsoft Clarity
 clarity             = "3.8.1"
 
-# Facebook Core SDK (App Events / analytics)
+# Facebook Core SDK
 facebookSdk         = "18.0.3"
 
 # Braze
-braze               = "33.0.0"
+braze               = "33.1.0"
 
 # OneSignal
 oneSignal           = "5.6.2"
-# ─────────────────────────────────────────────────────────────────────────────
+# ──────────────────────────────────────────────────────────────────────────────────────────────────
 
 [plugins]
 android-application     = { id = "com.android.application",                         version.ref = "agp"        }
@@ -135,6 +137,7 @@ okhttp-logging              = { group = "com.squareup.okhttp3",      name = "log
 
 # Image
 coil                        = { group = "io.coil-kt",                name = "coil",                     version.ref = "coil"            }
+shimmer                     = { group = "com.facebook.shimmer",     name = "shimmer",                  version.ref = "shimmer"         }
 
 # DI
 hilt-android                = { group = "com.google.dagger",         name = "hilt-android",             version.ref = "hilt"            }
@@ -152,7 +155,7 @@ coroutines-test             = { group = "org.jetbrains.kotlinx",     name = "kot
 # DataStore
 datastore-prefs             = { group = "androidx.datastore",        name = "datastore-preferences",    version.ref = "datastore"       }
 
-# ── MARTECH ──────────────────────────────────────────────────────────────────
+# Martech SDK ─────────────────────────────────────────────────────────────────────────────────
 # Firebase (Analytics + Crashlytics + FCM + Auth + Firestore)
 firebase-bom                = { group = "com.google.firebase",       name = "firebase-bom",             version.ref = "firebaseBom"     }
 firebase-analytics          = { group = "com.google.firebase",       name = "firebase-analytics"                                       }
@@ -167,6 +170,7 @@ play-services-appset        = { group = "com.google.android.gms",    name = "pla
 play-services-ads-identifier= { group = "com.google.android.gms",    name = "play-services-ads-identifier",version.ref = "playServicesAdsId"  }
 # Firebase In-App Messaging (version managed by firebase-bom)
 firebase-inappmessaging     = { group = "com.google.firebase",       name = "firebase-inappmessaging-display"                          }
+firebase-ai                 = { group = "com.google.firebase",       name = "firebase-ai"                                              }
 
 # AppsFlyer
 appsflyer                  = { group = "com.appsflyer",              name = "af-android-sdk",           version.ref = "appsflyer"              }
@@ -180,9 +184,10 @@ mixpanel                    = { group = "com.mixpanel.android",      name = "mix
 mixpanel-session-replay     = { group = "com.mixpanel.android",      name = "mixpanel-android-session-replay", version.ref = "mixpanelSessionReplay" }
 
 # Amplitude
-amplitude                   = { group = "com.amplitude",             name = "analytics-android",            version.ref = "amplitude"       }
+amplitude                   = { group = "com.amplitude",             name = "analytics-android",            version.ref = "amplitude"          }
 amplitude-session-replay    = { group = "com.amplitude",             name = "plugin-session-replay-android", version.ref = "amplitudeSessionReplay" }
 amplitude-experiment        = { group = "com.amplitude",             name = "experiment-android-client",     version.ref = "amplitudeExperiment"    }
+amplitude-engagement        = { group = "com.amplitude",             name = "amplitude-engagement-android",  version.ref = "amplitudeEngagement"    }
 
 # Segment (Kotlin Analytics SDK)
 segment                     = { group = "com.segment.analytics.kotlin",  name = "android",              version.ref = "segment"         }

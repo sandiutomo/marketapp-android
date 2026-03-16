@@ -1,7 +1,9 @@
 package com.marketapp.analytics
 
 import android.content.Context
+import android.util.Log
 import com.marketapp.BuildConfig
+import com.marketapp.config.FeatureGate
 import com.statsig.androidsdk.IStatsigCallback
 import com.statsig.androidsdk.Statsig
 import com.statsig.androidsdk.StatsigOptions
@@ -19,7 +21,10 @@ import java.util.Locale
 import javax.inject.Inject
 import javax.inject.Singleton
 
-/** Statsig analytics tracker. Statsig is primarily a feature-flagging / experimentation SDK. */
+/**
+ * Statsig analytics tracker. Statsig is primarily a feature-flagging / experimentation SDK.
+ * Standalone: feature flags + async init timeout + clean shutdown.
+ */
 @Singleton
 class StatsigTracker @Inject constructor(
     @ApplicationContext private val context: Context
@@ -60,6 +65,20 @@ class StatsigTracker @Inject constructor(
                 options     = options
             )
         }
+        if (BuildConfig.DEBUG) logGates()
+    }
+
+    private fun logGates() {
+        Log.d(TAG, "┌─── Statsig Gate Values ─────────────────────────────")
+        FeatureGate.entries.forEach { gate ->
+            val passes = Statsig.checkGate(gate.key)
+            Log.d(TAG, "│  ${if (passes) "✓" else "✗"}  ${gate.key.padEnd(40)} = $passes")
+        }
+        Log.d(TAG, "└─────────────────────────────────────────────────────")
+    }
+
+    companion object {
+        private const val TAG = "Statsig"
     }
 
     override fun track(event: AnalyticsEvent) {
@@ -105,7 +124,7 @@ class StatsigTracker @Inject constructor(
                 properties.email?.let { put("email", it) }
                 properties.phone?.let { put("phone", it) }
             }
-            // customIDs enable multi-dimensional targeting:
+            // customIDs enable multidimensional targeting:
             //   "deviceId"       → device-based gates (stable across sign-ins, targets unauthed users)
             //   "advertisingId"  → cross-app experiments correlated with ad attribution
             // Each key maps to a separate Statsig targeting dimension in the dashboard.
@@ -142,7 +161,7 @@ class StatsigTracker @Inject constructor(
         Statsig.shutdown()
     }
 
-    // ── Helpers ───────────────────────────────────────────────────────────────
+    // Helpers ───────────────────────────────────────────────────────────────
 
     /** Anonymous user sent at init and on reset. Locale and app version are always set
      *  so gate/experiment targeting rules can use them even before the user signs in. */

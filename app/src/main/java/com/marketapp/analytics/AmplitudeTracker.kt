@@ -3,6 +3,7 @@ package com.marketapp.analytics
 import android.app.Activity
 import android.app.Application
 import android.content.Context
+import android.util.Log
 import android.os.Bundle
 import android.view.View
 import android.view.ViewGroup
@@ -10,21 +11,34 @@ import android.widget.ImageView
 import com.amplitude.android.Amplitude
 import com.amplitude.android.AutocaptureOption
 import com.amplitude.android.Configuration
+import com.amplitude.android.engagement.AmplitudeEngagement
+import com.amplitude.android.engagement.AmplitudeInitOptions
 import com.amplitude.android.DeadClickOptions
 import com.amplitude.android.InteractionsOptions
 import com.amplitude.android.RageClickOptions
 import com.amplitude.android.events.Identify
 import com.amplitude.android.plugins.SessionReplayPlugin
 import com.amplitude.common.Logger
+import com.amplitude.experiment.Experiment
+import com.amplitude.experiment.ExperimentClient
+import com.amplitude.experiment.ExperimentConfig
+import com.amplitude.experiment.ExperimentUser
 import com.marketapp.BuildConfig
 import com.microsoft.clarity.Clarity
+import com.statsig.androidsdk.Statsig
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import javax.inject.Singleton
 
-/** Amplitude Analytics tracker. */
+/**
+ * Amplitude Analytics tracker.
+ * Standalone: session replay, autocapture, frustration detection.
+ */
 @Singleton
 class AmplitudeTracker @Inject constructor(
     @ApplicationContext private val context: Context
@@ -38,6 +52,9 @@ class AmplitudeTracker @Inject constructor(
     // the SessionReplayPlugin is lazily attached after the session starts.
     private var sessionRecorded = false
     private var sessionReplayAttached = false
+
+    private val experimentJob = SupervisorJob()
+    private val experimentScope = CoroutineScope(experimentJob + Dispatchers.IO)
 
     override suspend fun initialize() {
         sessionRecorded = Math.random() < 0.4
@@ -77,10 +94,43 @@ class AmplitudeTracker @Inject constructor(
                 amplitude.logger.logMode = Logger.LogMode.DEBUG
             }
             deviceId = amplitude.getDeviceId()
+
+            // Guides & Surveys — plugin approach shares identity with Analytics automatically.
+            val eng = AmplitudeEngagement(
+                context = context,
+                apiKey  = BuildConfig.AMPLITUDE_API_KEY,
+                options = AmplitudeInitOptions()
+            )
+            amplitude.add(eng.getPlugin())
+            engagement = eng
         }
         if (sessionRecorded) {
             (context as Application).registerActivityLifecycleCallbacks(softwareLayerFix)
         }
+
+        // Amplitude Experiment — use initializeWithAmplitudeAnalytics so this client and
+        // ExperimentManager.amplitudeExperiment share the same SDK singleton (keyed by
+        // deployment key). Using Experiment.initialize() here creates a SEPARATE client
+        // that never receives the variants fetched by ExperimentManager, causing the
+        // debug panel to always show "unset".
+        val expClient = Experiment.initializeWithAmplitudeAnalytics(
+            context.applicationContext as Application,
+            BuildConfig.AMPLITUDE_EXPERIMENT_DEPLOYMENT_KEY,
+            ExperimentConfig()
+        )
+        experimentScope.launch {
+            try {
+                expClient.fetch(null).get()
+                if (BuildConfig.DEBUG) {
+                    com.marketapp.config.AmplitudeExperimentFlag.entries.forEach { flag ->
+                        Log.d("Experiments", "[Amplitude] fetch OK: ${flag.key}=${expClient.variant(flag.key)?.value ?: "null"}")
+                    }
+                }
+            } catch (e: Exception) {
+                Log.w("Experiments", "[Amplitude] fetch FAILED: ${e.message}")
+            }
+        }
+        experimentClient = expClient
     }
 
     /**
@@ -114,6 +164,7 @@ class AmplitudeTracker @Inject constructor(
     }
 
     override fun track(event: AnalyticsEvent) {
+        if (!Statsig.checkGate("sdk_amplitude_enabled")) return
         // Attach the SessionReplayPlugin the first time we have a valid session.
         // By the time the first event is tracked, the Activity is on screen and
         // Amplitude has established a session (sessionId is a positive timestamp).
@@ -193,6 +244,14 @@ class AmplitudeTracker @Inject constructor(
             properties.customAttributes.forEach { (k, v) -> set(k, v.toString()) }
         }
         amplitude.identify(identify)
+        // Guides & Surveys identity is synced automatically via the plugin added in
+        // initialize() — amplitude.add(eng.getPlugin()) intercepts every identify call.
+
+        // Re-fetch Experiment variants so flag targeting reflects the signed-in user.
+        val expUser = ExperimentUser.Builder().userId(userId).build()
+        experimentScope.launch {
+            try { experimentClient?.fetch(expUser) } catch (_: Exception) {}
+        }
     }
 
     override fun maskView(view: View) {
@@ -211,6 +270,7 @@ class AmplitudeTracker @Inject constructor(
 
     override fun shutdown() {
         amplitude.flush()
+        experimentJob.cancel()
     }
 
     companion object {
@@ -219,5 +279,89 @@ class AmplitudeTracker @Inject constructor(
             private set
         @Volatile var sessionId: Long = -1L
             private set
+        /** Exposed for DebugInfoBottomSheet to read Experiment variant values. */
+        @Volatile var experimentClient: ExperimentClient? = null
+            private set
+        /** Exposed so MainActivity can call screen() and handleLinkIntent(). */
+        @Volatile var engagement: AmplitudeEngagement? = null
+            private set
+    }
+}
+
+/**
+ * Centralized session-replay status logger.
+ *
+ * Each SDK tracker calls [record] during its [AnalyticsTracker.initialize].
+ * [AnalyticsManager] calls [printSummary] once all trackers are ready so
+ * a single, formatted table appears in logcat on every app launch.
+ *
+ * Example output:
+ * ```
+ * I/SessionReplay: ┌─── Session Replay Status ─────────────────────────────
+ * I/SessionReplay: │  ● ACTIVE    [Amplitude]          debug=100% / prod=40%
+ * I/SessionReplay: │  ● ACTIVE    [Mixpanel]            debug= 20% / prod=40%
+ * I/SessionReplay: │  ○ INACTIVE  [PostHog]             debug= 20% / prod=40%
+ * I/SessionReplay: │  2 / 3 platforms recording this session
+ * I/SessionReplay: └───────────────────────────────────────────────────────
+ * ```
+ *
+ * Thread-safe: all three SDK trackers initialize in parallel on [kotlinx.coroutines.Dispatchers.IO].
+ */
+internal object SessionReplayLogger {
+
+    private const val TAG = "SessionReplay"
+
+    private data class Entry(
+        val platform: String,
+        val active: Boolean,
+        val debugPct: Int,
+        val prodPct: Int
+    )
+
+    private val lock    = Any()
+    private val entries = mutableListOf<Entry>()
+
+    /**
+     * Record and immediately log a single platform's replay decision.
+     *
+     * @param platform  Human-readable SDK name, e.g. "Amplitude"
+     * @param active    Whether this session will be recorded
+     * @param debugPct  Configured sample rate for debug builds (0–100)
+     * @param prodPct   Configured sample rate for production builds (0–100)
+     */
+    fun record(platform: String, active: Boolean, debugPct: Int, prodPct: Int) {
+        val entry = Entry(platform, active, debugPct, prodPct)
+        synchronized(lock) { entries.add(entry) }
+
+        val icon   = if (active) "●" else "○"
+        val status = if (active) "ACTIVE  " else "INACTIVE"
+        Log.i(TAG, "$icon $status  [$platform]")
+    }
+
+    /**
+     * Print a summary table once all trackers have finished initializing.
+     * Clears the entry list so subsequent [printSummary] calls are no-ops
+     * unless new [record] calls are made.
+     */
+    fun printSummary() {
+        val snapshot = synchronized(lock) {
+            val copy = entries.toList()
+            entries.clear()
+            copy
+        }
+        if (snapshot.isEmpty()) return
+
+        val activeCount = snapshot.count { it.active }
+        val col = snapshot.maxOf { it.platform.length }
+
+        Log.i(TAG, "┌─── Session Replay Status ─────────────────────────────")
+        snapshot.forEach { e ->
+            val icon   = if (e.active) "●" else "○"
+            val status = if (e.active) "ACTIVE  " else "INACTIVE"
+            val name   = "[${e.platform}]".padEnd(col + 2)
+            Log.i(TAG, "│  $icon $status  $name  debug=${e.debugPct.toString().padStart(3)}% / prod=${e.prodPct}%")
+        }
+        Log.i(TAG, "│  $activeCount / ${snapshot.size} platforms recording this session")
+        Log.i(TAG, "└───────────────────────────────────────────────────────")
     }
 }

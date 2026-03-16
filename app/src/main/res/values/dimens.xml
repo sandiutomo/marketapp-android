@@ -27,6 +27,9 @@
     <!-- Bottom nav -->
     <dimen name="bottom_nav_height">80dp</dimen>
 
+    <!-- Braze Banner -->
+    <dimen name="banner_max_height">550dp</dimen>
+
     <!-- Button -->
     <dimen name="button_height">52dp</dimen>
     <dimen name="button_radius">12dp</dimen>

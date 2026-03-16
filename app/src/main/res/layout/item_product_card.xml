@@ -19,15 +19,32 @@
         android:layout_height="wrap_content"
         android:orientation="vertical">
 
-        <!-- Product Image -->
-        <ImageView
-            android:id="@+id/img_product"
+        <!-- Product Image + Wishlist overlay -->
+        <FrameLayout
             android:layout_width="match_parent"
-            android:layout_height="@dimen/product_card_image_height"
-            android:scaleType="centerInside"
-            android:padding="24dp"
-            android:background="@color/white"
-            android:contentDescription="Product image" />
+            android:layout_height="@dimen/product_card_image_height">
+
+            <ImageView
+                android:id="@+id/img_product"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:scaleType="centerInside"
+                android:padding="24dp"
+                android:background="@color/image_background"
+                android:contentDescription="Product image" />
+
+            <ImageButton
+                android:id="@+id/btn_wishlist"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:layout_gravity="top|end"
+                android:layout_margin="8dp"
+                android:src="@drawable/ic_heart"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Add to wishlist"
+                android:tint="@color/error" />
+
+        </FrameLayout>
 
         <!-- Info section -->
         <LinearLayout

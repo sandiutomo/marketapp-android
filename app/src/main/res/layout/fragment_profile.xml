@@ -177,62 +177,36 @@
                 android:orientation="vertical"
                 android:padding="@dimen/spacing_16">
 
-                <LinearLayout
+                <Button
+                    android:id="@+id/btn_debug_info"
+                    style="@style/Widget.MarketApp.Button.Secondary"
                     android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:gravity="center_vertical">
+                    android:layout_height="@dimen/button_height"
+                    android:text="SDK &amp; Flag Status" />
 
-                    <Button
-                        android:id="@+id/btn_trigger_push"
-                        style="@style/Widget.MarketApp.Button.Secondary"
-                        android:layout_width="0dp"
-                        android:layout_height="@dimen/button_height"
-                        android:layout_weight="1"
-                        android:text="@string/debug_trigger_push" />
-
-                    <View
-                        android:layout_width="@dimen/spacing_12"
-                        android:layout_height="0dp" />
-
-                    <Button
-                        android:id="@+id/btn_trigger_banner"
-                        style="@style/Widget.MarketApp.Button.Secondary"
-                        android:layout_width="0dp"
-                        android:layout_height="@dimen/button_height"
-                        android:layout_weight="1"
-                        android:text="@string/debug_trigger_banner" />
-
-                </LinearLayout>
-
-                <LinearLayout
+                <Button
+                    android:id="@+id/btn_trigger_push"
+                    style="@style/Widget.MarketApp.Button.Secondary"
                     android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:gravity="center_vertical"
-                    android:layout_marginTop="@dimen/spacing_12">
+                    android:layout_height="@dimen/button_height"
+                    android:layout_marginTop="@dimen/spacing_12"
+                    android:text="@string/debug_trigger_push" />
 
-                    <Button
-                        android:id="@+id/btn_trigger_inapp"
-                        style="@style/Widget.MarketApp.Button.Secondary"
-                        android:layout_width="0dp"
-                        android:layout_height="@dimen/button_height"
-                        android:layout_weight="1"
-                        android:text="@string/debug_trigger_inapp" />
+                <Button
+                    android:id="@+id/btn_trigger_banner"
+                    style="@style/Widget.MarketApp.Button.Secondary"
+                    android:layout_width="match_parent"
+                    android:layout_height="@dimen/button_height"
+                    android:layout_marginTop="@dimen/spacing_12"
+                    android:text="@string/debug_trigger_banner" />
 
-                    <View
-                        android:layout_width="@dimen/spacing_12"
-                        android:layout_height="0dp" />
-
-                    <Button
-                        android:id="@+id/btn_trigger_experiment"
-                        style="@style/Widget.MarketApp.Button.Secondary"
-                        android:layout_width="0dp"
-                        android:layout_height="@dimen/button_height"
-                        android:layout_weight="1"
-                        android:text="@string/debug_trigger_experiment" />
-
-                </LinearLayout>
+                <Button
+                    android:id="@+id/btn_trigger_inapp"
+                    style="@style/Widget.MarketApp.Button.Secondary"
+                    android:layout_width="match_parent"
+                    android:layout_height="@dimen/button_height"
+                    android:layout_marginTop="@dimen/spacing_12"
+                    android:text="@string/debug_trigger_inapp" />
 
                 <Button
                     android:id="@+id/btn_trigger_content_card"
@@ -241,6 +215,14 @@
                     android:layout_height="@dimen/button_height"
                     android:layout_marginTop="@dimen/spacing_12"
                     android:text="@string/debug_trigger_content_card" />
+
+                <Button
+                    android:id="@+id/btn_clear_braze_cache"
+                    style="@style/Widget.MarketApp.Button.Secondary"
+                    android:layout_width="match_parent"
+                    android:layout_height="@dimen/button_height"
+                    android:layout_marginTop="@dimen/spacing_12"
+                    android:text="@string/debug_clear_braze_cache" />
 
             </LinearLayout>
 

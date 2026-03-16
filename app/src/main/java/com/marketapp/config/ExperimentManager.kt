@@ -5,6 +5,8 @@ import android.util.Log
 import com.amplitude.experiment.Experiment
 import com.amplitude.experiment.ExperimentConfig
 import com.braze.models.FeatureFlag as BrazeFeatureFlag
+import com.google.firebase.crashlytics.ktx.crashlytics
+import com.google.firebase.ktx.Firebase
 import com.marketapp.BuildConfig
 import com.posthog.PostHog
 import com.statsig.androidsdk.DynamicConfig
@@ -15,11 +17,8 @@ import org.json.JSONObject
 import javax.inject.Inject
 import javax.inject.Singleton
 
-/**
- * Unified experiments and feature-flag manager.
- *
- * Wraps five platforms so the rest of the codebase has a single, stable interface
- * regardless of which tool owns a given flag:
+/** Unified experiments and feature-flag manager. Wraps five platforms so the rest of the codebase
+ * has a single, stable interface regardless of which tool owns a given flag:
  *
  * | Provider              | What it's best for                              |
  * |-----------------------|-------------------------------------------------|
@@ -34,7 +33,7 @@ import javax.inject.Singleton
  *   @Inject lateinit var experiments: ExperimentManager
  *
  *   // Firebase Remote Config boolean flag
- *   if (experiments.isEnabled(FeatureFlag.CHECKOUT_ENABLED)) { ... }
+ *   if (experiments.isEnabled(FeatureFlag.AI_SEARCH_ENABLED)) { ... }
  *
  *   // Statsig feature gate
  *   if (experiments.isStatsigGateEnabled("new_checkout_flow")) { ... }
@@ -55,10 +54,9 @@ class ExperimentManager @Inject constructor(
     private val remoteConfigManager: RemoteConfigManager
 ) {
 
-    /**
-     * Amplitude Experiment client — initialised lazily and linked to the
-     * Amplitude Analytics instance so user identity is shared automatically.
-     */
+    /** Amplitude Experiment client — initialized lazily and linked to the Amplitude Analytics
+     * instance so user identity is shared automatically.
+     * */
     private val amplitudeExperiment by lazy {
         Experiment.initializeWithAmplitudeAnalytics(
             context.applicationContext as android.app.Application,
@@ -81,21 +79,30 @@ class ExperimentManager @Inject constructor(
             .onFailure { Log.w(TAG, "Amplitude Experiment fetch failed: ${it.message}") }
     }
 
-    // ── Firebase Remote Config ────────────────────────────────────────────────
+    // Firebase Remote Config ──────────────────────────────────────────────────────────────────────
 
     fun isEnabled(flag: FeatureFlag): Boolean = remoteConfigManager.isEnabled(flag)
+
+    /**
+     * Invokes [action] on the main thread once the current RC fetch completes.
+     * Use this to re-render UI that read a flag before [RemoteConfigManager.fetchAndActivate]
+     * finished (race condition on first launch after a flag change).
+     */
+    fun doOnRcFetchComplete(action: () -> Unit) =
+        remoteConfigManager.doOnNextFetchComplete(action)
     fun getString(flag: FeatureFlag): String   = remoteConfigManager.getString(flag)
     fun getDouble(flag: FeatureFlag): Double   = remoteConfigManager.getDouble(flag)
     fun getLong(flag: FeatureFlag):   Long     = remoteConfigManager.getLong(flag)
 
-    // ── Statsig Feature Gates & Experiments ──────────────────────────────────
-
+    // Statsig Feature Gates & Experiments ─────────────────────────────────────────────────────────
     /**
-     * Returns true if the Statsig feature gate is open for the current user.
-     * Falls back to false if Statsig is not yet initialized.
-     */
+     * Returns true if the Statsig feature gate is open for the current user. Falls back to false
+     * if Statsig is not yet initialized.
+     * */
     fun isStatsigGateEnabled(gate: String): Boolean =
-        runCatching { Statsig.checkGate(gate) }.getOrElse { false }
+        runCatching { Statsig.checkGate(gate) }.getOrElse { false }.also { enabled ->
+            runCatching { Firebase.crashlytics.setCustomKey("gate_$gate", enabled) }
+        }
 
     /**
      * Returns the Statsig [DynamicConfig] for the named A/B experiment.
@@ -152,7 +159,7 @@ class ExperimentManager @Inject constructor(
     fun getStatsigLayerNoExposure(layerName: String): Layer? =
         runCatching { Statsig.getLayerWithExposureLoggingDisabled(layerName) }.getOrNull()
 
-    // ── PostHog Feature Flags ─────────────────────────────────────────────────
+    // PostHog Feature Flags ───────────────────────────────────────────────────────────────────────
 
     /**
      * Returns true if the PostHog feature flag is enabled for the current user.
@@ -199,7 +206,7 @@ class ExperimentManager @Inject constructor(
         runCatching { PostHog.reloadFeatureFlags { onComplete?.invoke() } }
     }
 
-    // ── Braze Feature Flags ───────────────────────────────────────────────────
+    // Braze Feature Flags ─────────────────────────────────────────────────────────────────────────
     /**
      * Returns the Braze [BrazeFeatureFlag] for the given ID, or null if not found.
      * Access typed properties via [BrazeFeatureFlag.getStringProperty],
@@ -219,8 +226,7 @@ class ExperimentManager @Inject constructor(
         runCatching { com.braze.Braze.getInstance(context).refreshFeatureFlags() }
     }
 
-    // ── Amplitude Experiment ──────────────────────────────────────────────────
-
+    // Amplitude Experiment ────────────────────────────────────────────────────────────────────────
     /**
      * Returns the variant key string assigned to the current user for the given
      * flag or experiment, or null if they are in the control group or the
@@ -230,7 +236,9 @@ class ExperimentManager @Inject constructor(
      */
     fun getAmplitudeVariant(flagKey: String): String? =
         runCatching {
-            amplitudeExperiment.variant(flagKey)?.value?.takeIf { it.isNotEmpty() }
+            amplitudeExperiment.variant(flagKey)?.value?.takeIf { it.isNotEmpty() }?.also { variant ->
+                runCatching { Firebase.crashlytics.setCustomKey("exp_$flagKey", variant) }
+            }
         }.getOrNull()
 
     /**
@@ -240,7 +248,7 @@ class ExperimentManager @Inject constructor(
     fun getAmplitudeVariantPayload(flagKey: String): Any? =
         runCatching { amplitudeExperiment.variant(flagKey)?.payload }.getOrNull()
 
-    // ── Mixpanel Experiment Exposure ──────────────────────────────────────────
+    // Mixpanel Experiment Exposure ────────────────────────────────────────────────────────────────
 
     /**
      * Logs an `$experiment_started` event to Mixpanel.

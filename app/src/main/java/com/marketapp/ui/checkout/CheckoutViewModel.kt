@@ -1,6 +1,7 @@
 package com.marketapp.ui.checkout
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.google.firebase.perf.metrics.Trace
 import com.marketapp.analytics.AnalyticsEvent
 import com.marketapp.analytics.AnalyticsManager
@@ -12,9 +13,22 @@ import com.marketapp.data.model.Cart
 import com.marketapp.data.model.Order
 import com.marketapp.data.repository.AuthRepository
 import com.marketapp.data.repository.CartManager
+import com.marketapp.config.FeatureFlag
+import com.marketapp.config.RemoteConfigManager
+import com.marketapp.data.repository.OrderRepository
 import com.marketapp.data.repository.UserStatsRepository
+import android.util.Log
+import com.marketapp.ai.AiRepository
+import java.text.NumberFormat
+import java.util.Locale
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.util.UUID
 import javax.inject.Inject
 
@@ -24,10 +38,16 @@ class CheckoutViewModel @Inject constructor(
     private val analytics: AnalyticsManager,
     private val authRepository: AuthRepository,
     private val userStats: UserStatsRepository,
-    private val perf: PerformanceMonitor
+    private val perf: PerformanceMonitor,
+    private val orderRepository: OrderRepository,
+    private val remoteConfig: RemoteConfigManager,
+    private val aiRepository: AiRepository
 ) : ViewModel() {
 
     val cart: StateFlow<Cart> = cartManager.cart
+
+    private val _aiOrderMessage = MutableStateFlow("")
+    val aiOrderMessage: StateFlow<String> = _aiOrderMessage.asStateFlow()
 
     // Spans the full checkout flow: started in onCheckoutStarted(), stopped in placeOrder().
     private var checkoutTrace: Trace? = null
@@ -73,7 +93,7 @@ class CheckoutViewModel @Inject constructor(
         )
 
         val ecommerceItems = c.toEcommerceItems()
-        val idrTotal = c.totalValueIdr
+        val idrTotal = c.totalValueIdr + shippingFeeIdr()
 
         analytics.track(
             AnalyticsEvent.PaymentMethodSelected(
@@ -97,6 +117,20 @@ class CheckoutViewModel @Inject constructor(
         userStats.recordOrder(idrTotal)
 
         val userId = authRepository.currentUserId ?: return order
+        if (remoteConfig.isEnabled(FeatureFlag.FIRESTORE_WRITE_ENABLED)) {
+            Log.d(TAG, "firestore_write_enabled=true — writing order ${order.id} to Firestore")
+            viewModelScope.launch(Dispatchers.IO + NonCancellable) {
+                orderRepository.saveOrder(userId, order)
+                Log.d(TAG, "Firestore write dispatched for order ${order.id}")
+            }
+        } else {
+            Log.d(TAG, "firestore_write_enabled=false — Firestore write skipped for order ${order.id}")
+        }
+        if (remoteConfig.isEnabled(FeatureFlag.AI_ORDER_MESSAGE_ENABLED)) {
+            viewModelScope.launch {
+                _aiOrderMessage.value = aiRepository.generateOrderMessage(order, userStats.orderCount)
+            }
+        }
         val preferredCategory = c.items.maxByOrNull { it.quantity }?.product?.category
         analytics.identify(
             userId = userId,
@@ -128,6 +162,37 @@ class CheckoutViewModel @Inject constructor(
         pendingOrderItems    = emptyList()
         pendingOrderValue    = 0.0
         pendingPaymentMethod = ""
+        _aiOrderMessage.value = ""
     }
 
+    // ── Shipping fee ─────────────────────────────────────────────────────────────
+
+    private val idrFormat = NumberFormat.getIntegerInstance(Locale("in", "ID"))
+
+    /**
+     * Returns the flat shipping fee in IDR, or 0.0 if the cart meets the free-shipping threshold.
+     *
+     * Threshold is read from Firebase RC (`free_shipping_threshold_idr`):
+     *   - 0.0          → always free (default / high-LTV bucket)
+     *   - 2_000_000.0  → low-LTV bucket: charge shipping on orders below 2M IDR
+     */
+    fun shippingFeeIdr(): Double {
+        val threshold = remoteConfig.getDouble(FeatureFlag.FREE_SHIPPING_THRESHOLD_IDR)
+        return if (threshold > 0.0 && cart.value.totalValueIdr < threshold) SHIPPING_FEE_IDR else 0.0
+    }
+
+    fun formattedShippingFee(): String {
+        val fee = shippingFeeIdr()
+        return if (fee > 0.0) "Rp ${idrFormat.format(fee.toLong())}" else "Free"
+    }
+
+    fun formattedGrandTotal(): String {
+        val total = cart.value.totalValueIdr + shippingFeeIdr()
+        return "Rp ${idrFormat.format(total.toLong())}"
+    }
+
+    companion object {
+        private const val TAG = "CheckoutViewModel"
+        const val SHIPPING_FEE_IDR = 150_000.0
+    }
 }

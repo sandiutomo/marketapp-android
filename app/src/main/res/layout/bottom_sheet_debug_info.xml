@@ -1,0 +1,231 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="@color/surface">
+
+    <!-- Drag handle -->
+    <View
+        android:layout_width="32dp"
+        android:layout_height="4dp"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginTop="12dp"
+        android:background="@color/gray_5" />
+
+    <!-- Header -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingHorizontal="@dimen/screen_padding"
+        android:paddingTop="@dimen/spacing_16"
+        android:paddingBottom="@dimen/spacing_12">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Debug Info"
+            android:textAppearance="@style/TextAppearance.MarketApp.Title1"
+            android:textColor="@color/text_primary" />
+
+        <Button
+            android:id="@+id/btn_refresh"
+            style="@style/Widget.MarketApp.Button.Secondary"
+            android:layout_width="wrap_content"
+            android:layout_height="36dp"
+            android:paddingHorizontal="@dimen/spacing_16"
+            android:text="Refresh"
+            android:textSize="13sp" />
+
+    </LinearLayout>
+
+    <androidx.core.widget.NestedScrollView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <!-- SDK Gates — Statsig managed -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingHorizontal="@dimen/screen_padding"
+                android:paddingTop="@dimen/spacing_12"
+                android:paddingBottom="@dimen/spacing_8"
+                android:text="SDK GATES (STATSIG MANAGED)"
+                android:textAppearance="@style/TextAppearance.MarketApp.Caption"
+                android:textColor="@color/text_tertiary"
+                android:letterSpacing="0.08" />
+
+            <LinearLayout
+                android:id="@+id/container_sdks"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical" />
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="0.5dp"
+                android:layout_marginHorizontal="@dimen/screen_padding"
+                android:layout_marginTop="@dimen/spacing_16"
+                android:background="@color/gray_5" />
+
+            <!-- Feature Rollouts — Statsig managed -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingHorizontal="@dimen/screen_padding"
+                android:paddingTop="@dimen/spacing_16"
+                android:paddingBottom="@dimen/spacing_8"
+                android:text="FEATURE ROLLOUTS (STATSIG MANAGED)"
+                android:textAppearance="@style/TextAppearance.MarketApp.Caption"
+                android:textColor="@color/text_tertiary"
+                android:letterSpacing="0.08" />
+
+            <LinearLayout
+                android:id="@+id/container_rollouts"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical" />
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="0.5dp"
+                android:layout_marginHorizontal="@dimen/screen_padding"
+                android:layout_marginTop="@dimen/spacing_16"
+                android:background="@color/gray_5" />
+
+            <!-- Feature Flags — Firebase Remote Config managed -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingHorizontal="@dimen/screen_padding"
+                android:paddingTop="@dimen/spacing_16"
+                android:paddingBottom="@dimen/spacing_8"
+                android:text="FEATURE FLAGS (FIREBASE REMOTE CONFIG)"
+                android:textAppearance="@style/TextAppearance.MarketApp.Caption"
+                android:textColor="@color/text_tertiary"
+                android:letterSpacing="0.08" />
+
+            <LinearLayout
+                android:id="@+id/container_flags"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical" />
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="0.5dp"
+                android:layout_marginHorizontal="@dimen/screen_padding"
+                android:layout_marginTop="@dimen/spacing_16"
+                android:background="@color/gray_5" />
+
+            <!-- Feature Flags — PostHog managed -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingHorizontal="@dimen/screen_padding"
+                android:paddingTop="@dimen/spacing_16"
+                android:paddingBottom="@dimen/spacing_8"
+                android:text="FEATURE FLAGS (POSTHOG)"
+                android:textAppearance="@style/TextAppearance.MarketApp.Caption"
+                android:textColor="@color/text_tertiary"
+                android:letterSpacing="0.08" />
+
+            <LinearLayout
+                android:id="@+id/container_posthog"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical" />
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="0.5dp"
+                android:layout_marginHorizontal="@dimen/screen_padding"
+                android:layout_marginTop="@dimen/spacing_16"
+                android:background="@color/gray_5" />
+
+            <!-- Feature Flags — Braze managed -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingHorizontal="@dimen/screen_padding"
+                android:paddingTop="@dimen/spacing_16"
+                android:paddingBottom="@dimen/spacing_8"
+                android:text="FEATURE FLAGS (BRAZE)"
+                android:textAppearance="@style/TextAppearance.MarketApp.Caption"
+                android:textColor="@color/text_tertiary"
+                android:letterSpacing="0.08" />
+
+            <LinearLayout
+                android:id="@+id/container_braze"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical" />
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="0.5dp"
+                android:layout_marginHorizontal="@dimen/screen_padding"
+                android:layout_marginTop="@dimen/spacing_16"
+                android:background="@color/gray_5" />
+
+            <!-- Feature Flags — Amplitude Experiment managed -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingHorizontal="@dimen/screen_padding"
+                android:paddingTop="@dimen/spacing_16"
+                android:paddingBottom="@dimen/spacing_8"
+                android:text="FEATURE FLAGS (AMPLITUDE EXPERIMENT)"
+                android:textAppearance="@style/TextAppearance.MarketApp.Caption"
+                android:textColor="@color/text_tertiary"
+                android:letterSpacing="0.08" />
+
+            <LinearLayout
+                android:id="@+id/container_amplitude"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical" />
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="0.5dp"
+                android:layout_marginHorizontal="@dimen/screen_padding"
+                android:layout_marginTop="@dimen/spacing_16"
+                android:background="@color/gray_5" />
+
+            <!-- Device Tokens -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingHorizontal="@dimen/screen_padding"
+                android:paddingTop="@dimen/spacing_16"
+                android:paddingBottom="@dimen/spacing_8"
+                android:text="DEVICE TOKENS"
+                android:textAppearance="@style/TextAppearance.MarketApp.Caption"
+                android:textColor="@color/text_tertiary"
+                android:letterSpacing="0.08" />
+
+            <LinearLayout
+                android:id="@+id/container_tokens"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical" />
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="32dp" />
+
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
+
+</LinearLayout>

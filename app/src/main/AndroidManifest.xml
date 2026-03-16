@@ -145,6 +145,16 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="marketapp" />
             </intent-filter>
+
+            <!-- Amplitude Guides & Surveys — preview links sent from the Amplitude dashboard.
+                 Register this scheme in Amplitude: Settings → Projects → your app → Preview URL Scheme.
+                 Value to enter: marketapp-amp-preview -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="marketapp-amp-preview" />
+            </intent-filter>
         </activity>
 
         <!-- FCM Service -->

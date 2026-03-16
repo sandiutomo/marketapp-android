@@ -2,25 +2,21 @@
 <defaultsMap>
     <!-- UX / Merchandising -->
     <entry><key>show_promotions_banner</key><value>true</value></entry>
-    <entry><key>flash_sale_banner_enabled</key><value>false</value></entry>
     <entry><key>search_autocomplete_enabled</key><value>true</value></entry>
     <entry><key>wishlist_enabled</key><value>true</value></entry>
 
     <!-- Kill Switches — default ON so the app works offline / before first fetch -->
-    <entry><key>checkout_enabled</key><value>true</value></entry>
     <entry><key>payment_method_cod_enabled</key><value>true</value></entry>
-    <entry><key>payment_method_va_enabled</key><value>true</value></entry>
+    <entry><key>firestore_write_enabled</key><value>true</value></entry>
+    <entry><key>ai_order_message_enabled</key><value>true</value></entry>
+    <entry><key>ai_search_enabled</key><value>true</value></entry>
 
     <!-- Feature Rollouts — default OFF until explicitly enabled via RC console -->
-    <entry><key>home_personalisation_enabled</key><value>false</value></entry>
-    <entry><key>product_recommendations_enabled</key><value>true</value></entry>
-    <entry><key>review_module_enabled</key><value>false</value></entry>
-    <entry><key>loyalty_points_enabled</key><value>false</value></entry>
-    <entry><key>referral_program_enabled</key><value>false</value></entry>
+    <entry><key>ai_product_sorting_enabled</key><value>true</value></entry>
 
     <!-- Business Configuration Values -->
     <entry><key>cart_item_limit</key><value>20</value></entry>
-    <entry><key>free_shipping_threshold_idr</key><value>500000.0</value></entry>
+    <entry><key>free_shipping_threshold_idr</key><value>5000000.0</value></entry>
     <entry><key>minimum_order_value_idr</key><value>0.0</value></entry>
     <entry><key>max_shipping_days</key><value>7</value></entry>
 </defaultsMap>

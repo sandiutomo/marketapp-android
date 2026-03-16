@@ -10,6 +10,7 @@ import android.telephony.TelephonyManager
 import android.util.Log
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.net.toUri
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.lifecycleScope
@@ -23,10 +24,22 @@ import com.facebook.appevents.AppEventsLogger
 import com.google.android.gms.ads.identifier.AdvertisingIdClient
 import com.google.firebase.installations.FirebaseInstallations
 import com.google.firebase.messaging.FirebaseMessaging
+import com.amplitude.android.engagement.ui.theme.ThemeMode
 import com.marketapp.analytics.AnalyticsEvent
 import com.marketapp.analytics.AnalyticsManager
+import com.marketapp.analytics.AmplitudeTracker
 import com.marketapp.analytics.AppsFlyerTracker
+import com.marketapp.config.AmplitudeExperimentFlag
+import com.marketapp.config.BrazeFlag
+import com.marketapp.config.ExperimentManager
+import com.marketapp.config.FeatureFlag
+import com.marketapp.config.FeatureGate
+import com.marketapp.config.PostHogFlag
+import com.marketapp.config.RemoteConfigManager
+import com.posthog.PostHog
+import com.statsig.androidsdk.Statsig
 import com.marketapp.data.preferences.AppPreferences
+import com.marketapp.data.repository.CartManager
 import com.marketapp.databinding.ActivityMainBinding
 import com.marketapp.ui.consent.ConsentBottomSheet
 import dagger.hilt.android.AndroidEntryPoint
@@ -47,16 +60,34 @@ class MainActivity : AppCompatActivity() {
 
     @Inject lateinit var analyticsManager: AnalyticsManager
     @Inject lateinit var appPreferences: AppPreferences
+    @Inject lateinit var experiments: ExperimentManager
+    @Inject lateinit var remoteConfig: RemoteConfigManager
+    @Inject lateinit var cartManager: CartManager
 
     override fun onCreate(savedInstanceState: Bundle?) {
         // Splash screen — must be called before super.onCreate
         installSplashScreen()
 
+        // Hilt injection happens inside super.onCreate — experiments is available after this call.
         super.onCreate(savedInstanceState)
+
+        // Apply dark mode from Amplitude Experiment before inflating the layout so the
+        // correct theme is applied on the first draw. Cached variants from the previous
+        // session are available immediately; first-launch falls back to control (light).
+        val darkVariant = experiments.getAmplitudeVariant(AmplitudeExperimentFlag.DARK_MODE.key)
+        val isDark = darkVariant == "treatment"
+        if (BuildConfig.DEBUG && savedInstanceState == null) logAllFlags()
+        val targetNightMode = if (isDark) AppCompatDelegate.MODE_NIGHT_YES else AppCompatDelegate.MODE_NIGHT_NO
+        if (AppCompatDelegate.getDefaultNightMode() != targetNightMode) {
+            AppCompatDelegate.setDefaultNightMode(targetNightMode)
+        }
+        AmplitudeTracker.engagement?.setThemeMode(if (isDark) ThemeMode.DARK else ThemeMode.LIGHT)
+
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
         setupNavigation()
+        setupCartBadge()
 
         if (!appPreferences.consentShown) {
             ConsentBottomSheet().show(supportFragmentManager, ConsentBottomSheet.TAG)
@@ -111,6 +142,7 @@ class MainActivity : AppCompatActivity() {
         val launchState = if (isActivityResumed) "hot" else "warm"
         handleNativeDeepLink(intent, launchState)
         handlePushIntent(intent, launchState)
+        AmplitudeTracker.engagement?.handleLinkIntent(intent)
     }
 
     /**
@@ -272,8 +304,12 @@ class MainActivity : AppCompatActivity() {
         }
         binding.root.post {
             val navOptions = NavOptions.Builder()
-                .setPopUpTo(navController.graph.startDestinationId, false)
+                // saveState=true matches setupWithNavController's per-tab state management.
+                // Without it, repeated deep links corrupt the NavController saved-state map,
+                // causing BottomNav tab taps to silently fail after 3+ navigations.
+                .setPopUpTo(navController.graph.startDestinationId, false, true)
                 .setLaunchSingleTop(true)
+                .setRestoreState(true)
                 .build()
             try {
                 val request = NavDeepLinkRequest.Builder.fromUri(uri).build()
@@ -331,6 +367,16 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun setupCartBadge() {
+        lifecycleScope.launch {
+            cartManager.cart.collect { cart ->
+                val badge = binding.bottomNav.getOrCreateBadge(R.id.cartFragment)
+                badge.isVisible = cart.totalItems > 0
+                badge.number = cart.totalItems
+            }
+        }
+    }
+
     private fun setupNavigation() {
         val navHost = supportFragmentManager
             .findFragmentById(R.id.nav_host_fragment) as NavHostFragment
@@ -364,9 +410,36 @@ class MainActivity : AppCompatActivity() {
                 else                           -> destination.label?.toString() ?: "Unknown"
             }
             analyticsManager.track(AnalyticsEvent.ScreenView(screenName, screenClass))
+            AmplitudeTracker.engagement?.screen(screenClass)
         }
     }
 
     override fun onSupportNavigateUp() =
         navController.navigateUp() || super.onSupportNavigateUp()
+
+    private fun logAllFlags() {
+        val tag = "FlagStatus"
+        Log.d(tag, "┌─── Statsig ─────────────────────────────────────────────")
+        FeatureGate.entries.forEach { gate ->
+            Log.d(tag, "│  ${gate.key.padEnd(42)} ${if (Statsig.checkGate(gate.key)) "ACTIVE" else "off"}")
+        }
+        Log.d(tag, "├─── Remote Config ───────────────────────────────────────")
+        FeatureFlag.entries.forEach { flag ->
+            Log.d(tag, "│  ${flag.key.padEnd(42)} ${remoteConfig.rawValue(flag)}")
+        }
+        Log.d(tag, "├─── PostHog ─────────────────────────────────────────────")
+        PostHogFlag.entries.forEach { flag ->
+            Log.d(tag, "│  ${flag.key.padEnd(42)} ${PostHog.getFeatureFlag(flag.key)?.toString() ?: "unset"}")
+        }
+        Log.d(tag, "├─── Braze ───────────────────────────────────────────────")
+        val braze = com.braze.Braze.getInstance(this)
+        BrazeFlag.entries.forEach { flag ->
+            Log.d(tag, "│  ${flag.key.padEnd(42)} ${braze.getFeatureFlag(flag.key)?.enabled?.toString() ?: "unset"}")
+        }
+        Log.d(tag, "├─── Amplitude Experiment ────────────────────────────────")
+        AmplitudeExperimentFlag.entries.forEach { flag ->
+            Log.d(tag, "│  ${flag.key.padEnd(42)} ${experiments.getAmplitudeVariant(flag.key) ?: "unset"}")
+        }
+        Log.d(tag, "└─────────────────────────────────────────────────────────")
+    }
 }

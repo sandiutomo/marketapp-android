@@ -1,10 +1,15 @@
 package com.marketapp.ui.home
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.marketapp.BuildConfig
+import com.marketapp.ai.AiRepository
 import com.marketapp.analytics.AnalyticsEvent
 import com.marketapp.analytics.AnalyticsManager
 import com.marketapp.analytics.PerformanceMonitor
+import com.marketapp.config.FeatureFlag
+import com.marketapp.config.RemoteConfigManager
 import com.marketapp.data.model.Product
 import com.marketapp.data.model.UiState
 import com.marketapp.data.repository.ProductRepository
@@ -19,7 +24,9 @@ import javax.inject.Inject
 class SearchViewModel @Inject constructor(
     private val repository: ProductRepository,
     private val analytics: AnalyticsManager,
-    private val perf: PerformanceMonitor
+    private val perf: PerformanceMonitor,
+    private val aiRepository: AiRepository,
+    private val remoteConfig: RemoteConfigManager
 ) : ViewModel() {
 
     private val _query = MutableStateFlow("")
@@ -29,13 +36,13 @@ class SearchViewModel @Inject constructor(
     val results: StateFlow<UiState<List<Product>>?> = _results
 
     init {
-        // Debounce search — 400ms after user stops typing
+        // Debounce flow — keyword search only, no AI calls while typing
         viewModelScope.launch {
             _query
-                .debounce(400)
+                .debounce(800)
                 .filter { it.length >= 2 }
                 .distinctUntilChanged()
-                .collect { query -> search(query) }
+                .collect { query -> searchKeyword(query) }
         }
     }
 
@@ -44,21 +51,41 @@ class SearchViewModel @Inject constructor(
         if (q.length < 2) _results.value = null
     }
 
-    private fun search(query: String) {
+    // Called from SearchFragment when the user presses the IME Search key.
+    // Runs AI search (with keyword fallback) — one explicit call per submit.
+    fun onSearchSubmitted(query: String) {
+        if (query.length < 2) return
         viewModelScope.launch {
             _results.value = UiState.Loading
             perf.trace("search_load") { trace ->
                 trace.putAttribute("query_length", query.length.toString())
-                repository.searchProducts(query)
-                    .onSuccess { list ->
-                        trace.putAttribute("result_count", list.size.toString())
-                        _results.value = UiState.Success(list)
-                        analytics.track(AnalyticsEvent.SearchPerformed(query, list.size))
-                    }
-                    .onFailure {
-                        trace.putAttribute("result_count", "0")
-                        _results.value = UiState.Error(it.message ?: "Search failed")
-                    }
+                val aiEnabled = remoteConfig.isEnabled(FeatureFlag.AI_SEARCH_ENABLED) && query.length >= 4
+                if (BuildConfig.DEBUG) Log.d("FirebaseAI", "[search] ai_search_enabled=$aiEnabled query=\"$query\"")
+                val products = if (aiEnabled) {
+                    val allProducts = repository.getProducts().getOrNull() ?: emptyList()
+                    val aiResult = aiRepository.searchProducts(query, allProducts)
+                    if (BuildConfig.DEBUG) Log.d("FirebaseAI", "[search] ai returned ${aiResult?.size ?: "null (fallback)"}")
+                    aiResult ?: repository.searchProducts(query).getOrElse { emptyList() }
+                } else {
+                    repository.searchProducts(query).getOrElse { emptyList() }
+                }
+                trace.putAttribute("result_count", products.size.toString())
+                _results.value = if (products.isEmpty()) UiState.Error("No results found")
+                                 else UiState.Success(products)
+                analytics.track(AnalyticsEvent.SearchPerformed(query, products.size))
+            }
+        }
+    }
+
+    private fun searchKeyword(query: String) {
+        viewModelScope.launch {
+            _results.value = UiState.Loading
+            perf.trace("search_load") { trace ->
+                trace.putAttribute("query_length", query.length.toString())
+                val products = repository.searchProducts(query).getOrElse { emptyList() }
+                trace.putAttribute("result_count", products.size.toString())
+                _results.value = if (products.isEmpty()) UiState.Error("No results found")
+                                 else UiState.Success(products)
             }
         }
     }

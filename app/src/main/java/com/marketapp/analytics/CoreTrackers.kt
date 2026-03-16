@@ -1,4 +1,5 @@
 package com.marketapp.analytics
+// Lightweight trackers (fire-and-forget): Facebook, Firebase, PostHog, Mixpanel, AppsFlyer, Clarity, Braze, OneSignal
 
 import android.content.Context
 import android.os.Bundle
@@ -30,6 +31,7 @@ import com.mixpanel.android.sessionreplay.sensitive_views.SensitiveViewManager
 import com.posthog.PostHog
 import com.posthog.android.PostHogAndroid
 import com.posthog.android.PostHogAndroidConfig
+import com.statsig.androidsdk.Statsig
 import dagger.hilt.android.qualifiers.ApplicationContext
 
 import org.json.JSONObject
@@ -62,6 +64,7 @@ class FacebookTracker @Inject constructor(
 
     override fun track(event: AnalyticsEvent) {
         if (!FacebookSdk.isInitialized()) return
+        if (!Statsig.checkGate("sdk_facebook_enabled")) return
 
         when (event) {
             is AnalyticsEvent.ProductViewed -> {
@@ -156,10 +159,8 @@ class FacebookTracker @Inject constructor(
             }
             is AnalyticsEvent.UserSignedIn -> {
                 logger.logEvent(
-                    "fb_mobile_login",  // AppEventsConstants.EVENT_NAME_LOGGED_IN is absent in facebook-core; raw value is equivalent
+                    "fb_mobile_login",
                     Bundle().apply {
-                        // EVENT_PARAM_REGISTRATION_METHOD is the standard FB param for
-                        // both sign_up and login (e.g. "email", "google", "apple").
                         putString(AppEventsConstants.EVENT_PARAM_REGISTRATION_METHOD, event.method)
                     }
                 )
@@ -175,7 +176,6 @@ class FacebookTracker @Inject constructor(
                 )
             }
             is AnalyticsEvent.PaymentMethodSelected -> {
-                // GA4: add_payment_info — user selects payment method at checkout.
                 val params = Bundle().apply {
                     putString(AppEventsConstants.EVENT_PARAM_CONTENT_TYPE, event.method)
                     putString(AppEventsConstants.EVENT_PARAM_CURRENCY,     CURRENCY_IDR)
@@ -259,39 +259,40 @@ class FirebaseTracker @Inject constructor() : AnalyticsTracker {
     private val fc by lazy { Firebase.crashlytics }
 
     override fun track(event: AnalyticsEvent) {
+        if (!Statsig.checkGate("sdk_firebase_enabled")) return
         when (event) {
             is AnalyticsEvent.ScreenView            -> fa.logEvent(FirebaseAnalytics.Event.SCREEN_VIEW,       screenViewBundle(event))
-            // Product list ───────────────────────────────────────────────────────────
+            // Product list ────────────────────────────────────────────────────────────────────────
             is AnalyticsEvent.ProductListViewed     -> fa.logEvent(FirebaseAnalytics.Event.VIEW_ITEM_LIST,    viewItemListBundle(event))
             is AnalyticsEvent.ProductSelected       -> fa.logEvent(FirebaseAnalytics.Event.SELECT_ITEM,       selectItemBundle(event))
-            // Product detail ───────────────────────────────────────────────────────────
+            // Product detail ──────────────────────────────────────────────────────────────────────
             is AnalyticsEvent.ProductViewed         -> fa.logEvent(FirebaseAnalytics.Event.VIEW_ITEM,         viewItemBundle(event))
             is AnalyticsEvent.ProductWishlisted     -> if (event.added) {
                 fa.logEvent(FirebaseAnalytics.Event.ADD_TO_WISHLIST, addToWishlistBundle(event))
             } else {
                 fa.logEvent(event.name, removeFromWishlistBundle(event))
             }
-            // Cart ───────────────────────────────────────────────────────────
+            // Cart ────────────────────────────────────────────────────────────────────────────────
             is AnalyticsEvent.AddToCart             -> fa.logEvent(FirebaseAnalytics.Event.ADD_TO_CART,       addToCartBundle(event))
             is AnalyticsEvent.RemoveFromCart        -> fa.logEvent(FirebaseAnalytics.Event.REMOVE_FROM_CART,  removeFromCartBundle(event))
             is AnalyticsEvent.CartViewed            -> fa.logEvent(FirebaseAnalytics.Event.VIEW_CART,         viewCartBundle(event))
-            // Checkout funnel ───────────────────────────────────────────────────────────
+            // Checkout funnel ─────────────────────────────────────────────────────────────────────
             is AnalyticsEvent.CheckoutStarted       -> fa.logEvent(FirebaseAnalytics.Event.BEGIN_CHECKOUT,    beginCheckoutBundle(event))
             is AnalyticsEvent.ShippingInfoAdded     -> fa.logEvent(FirebaseAnalytics.Event.ADD_SHIPPING_INFO, shippingInfoBundle(event))
             is AnalyticsEvent.PaymentMethodSelected -> fa.logEvent(FirebaseAnalytics.Event.ADD_PAYMENT_INFO,  paymentInfoBundle(event))
             is AnalyticsEvent.OrderPlaced           -> fa.logEvent(FirebaseAnalytics.Event.PURCHASE,          purchaseBundle(event))
             is AnalyticsEvent.OrderRefunded         -> fa.logEvent(FirebaseAnalytics.Event.REFUND,            refundBundle(event))
-            // Promotions ───────────────────────────────────────────────────────────
+            // Promotions ──────────────────────────────────────────────────────────────────────────
             is AnalyticsEvent.PromotionViewed       -> fa.logEvent(FirebaseAnalytics.Event.VIEW_PROMOTION,    promotionBundle(event.promotionId, event.promotionName, event.creativeName, event.creativeSlot, event.locationId))
             is AnalyticsEvent.PromotionSelected     -> fa.logEvent(FirebaseAnalytics.Event.SELECT_PROMOTION,  promotionBundle(event.promotionId, event.promotionName, event.creativeName, event.creativeSlot, event.locationId))
-            // Search / discovery ───────────────────────────────────────────────────────────
+            // Search / discovery ──────────────────────────────────────────────────────────────────
             is AnalyticsEvent.SearchPerformed       -> fa.logEvent(FirebaseAnalytics.Event.SEARCH,            searchBundle(event))
             is AnalyticsEvent.ProductShared         -> fa.logEvent(FirebaseAnalytics.Event.SHARE,             shareBundle(event))
             is AnalyticsEvent.CategorySelected      -> fa.logEvent(FirebaseAnalytics.Event.SELECT_CONTENT,    selectContentBundle(event))
-            // Authentication ───────────────────────────────────────────────────────────
+            // Authentication ──────────────────────────────────────────────────────────────────────
             is AnalyticsEvent.UserSignedIn          -> fa.logEvent(FirebaseAnalytics.Event.LOGIN,             methodBundle(event.method))
             is AnalyticsEvent.UserRegistered        -> fa.logEvent(FirebaseAnalytics.Event.SIGN_UP,           methodBundle(event.method))
-            // Campaign ───────────────────────────────────────────────────────────
+            // Campaign ────────────────────────────────────────────────────────────────────────────
             // campaign_details     → Firebase reserved event; recorded internally for session attribution (invisible in DebugView by design)
             // deeplink_campaign_open → custom event; visible in DebugView for monitoring
             is AnalyticsEvent.CampaignOpened        -> {
@@ -300,14 +301,14 @@ class FirebaseTracker @Inject constructor() : AnalyticsTracker {
             }
             else                                    -> fa.logEvent(event.name, event.toProperties().toBundle())
         }
-        // Crashlytics ───────────────────────────────────────────────────────────
+        // Firebase Crashlytics - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
         when (event) {
-            // Navigation ───────────────────────────────────────────────────────────
+            // Navigation ──────────────────────────────────────────────────────────────────────────
             is AnalyticsEvent.ScreenView -> {
                 fc.log("SCREEN → ${event.screenName}")
                 fc.setCustomKey("current_screen", event.screenName)
             }
-            // Product discovery ───────────────────────────────────────────────────────────
+            // Product discovery ───────────────────────────────────────────────────────────────────
             is AnalyticsEvent.SearchPerformed -> {
                 fc.log("SEARCH \"${event.query}\" → ${event.resultCount} results")
                 fc.setCustomKey("last_search_query", event.query.take(100))
@@ -318,7 +319,7 @@ class FirebaseTracker @Inject constructor() : AnalyticsTracker {
                 fc.setCustomKey("last_product_name",     event.productName.take(64))
                 fc.setCustomKey("last_product_category", event.category)
             }
-            // Cart ───────────────────────────────────────────────────────────
+            // Cart ────────────────────────────────────────────────────────────────────────────────
             is AnalyticsEvent.AddToCart -> {
                 fc.log("ADD_TO_CART ${event.productId} qty=${event.quantity}")
                 fc.setCustomKey("last_add_to_cart_id", event.productId)
@@ -329,7 +330,7 @@ class FirebaseTracker @Inject constructor() : AnalyticsTracker {
                 fc.setCustomKey("cart_item_count", totalQty)
                 fc.setCustomKey("cart_value",      event.totalValue)
             }
-            // Checkout funnel ───────────────────────────────────────────────────────────
+            // Checkout funnel ─────────────────────────────────────────────────────────────────────
             is AnalyticsEvent.CheckoutStarted -> {
                 fc.log("CHECKOUT_STARTED items=${event.items.size} value=${event.totalValue}")
                 fc.setCustomKey("checkout_step",        "started")
@@ -353,10 +354,10 @@ class FirebaseTracker @Inject constructor() : AnalyticsTracker {
                 // Record as a typed non-fatal so it gets its own Crashlytics issue group.
                 fc.recordException(AppException("ORDER_FAILED", "Checkout", event.reason))
             }
-            // Auth ───────────────────────────────────────────────────────────
+            // Authentication ──────────────────────────────────────────────────────────────────────
             is AnalyticsEvent.UserSignedIn  -> fc.log("LOGIN method=${event.method}")
             is AnalyticsEvent.UserRegistered-> fc.log("REGISTER method=${event.method}")
-            // Non-fatal errors ──────────────────────────────────────────────────────
+            // Non-fatal errors ────────────────────────────────────────────────────────────────────
             // AppException class name is used by Crashlytics to group issues, so each
             // distinct (screen, code) pair creates a separate, actionable issue entry.
             is AnalyticsEvent.ErrorOccurred -> {
@@ -369,28 +370,32 @@ class FirebaseTracker @Inject constructor() : AnalyticsTracker {
 
     override fun identify(userId: String, properties: UserProperties) {
         fa.setUserId(userId)
-        // Email domain ───────────────────────────────────────────────────────────
+        // Email domain ────────────────────────────────────────────────────────────────────────────
         properties.email?.let          { fa.setUserProperty("email_domain",        it.substringAfter("@")) }
-        // Geo ───────────────────────────────────────────────────────────
+        // Geo ─────────────────────────────────────────────────────────────────────────────────────
         properties.country?.let        { fa.setUserProperty("country",             it) }
-        // Auth ───────────────────────────────────────────────────────────
+        // Auth ────────────────────────────────────────────────────────────────────────────────────
         properties.loginMethod?.let    { fa.setUserProperty("login_method",        it) }
-        // Purchase behavior ───────────────────────────────────────────────────────────
+        // Purchase behavior ───────────────────────────────────────────────────────────────────────
         properties.hasPurchased?.let   { fa.setUserProperty("has_purchased",       it.toString()) }
         properties.orderCount?.let     { fa.setUserProperty("order_count_bucket",  it.toOrderCountBucket()) }
         properties.lifetimeValue?.let  { fa.setUserProperty("ltv_bucket",          it.toLtvBucket()) }
-        // Personalisation ───────────────────────────────────────────────────────────
+        // Personalisation ─────────────────────────────────────────────────────────────────────────
         properties.preferredCategory?.let { fa.setUserProperty("preferred_category", it) }
-        // Device identifiers ───────────────────────────────────────────────────────────
+        // Device identifiers ──────────────────────────────────────────────────────────────────────
         fa.setUserProperty("c_user_id",      userId)
         properties.deviceId?.let       { fa.setUserProperty("c_device_id",    it) }
         properties.appSetId?.let       { fa.setUserProperty("app_set_id",     it) }
         properties.advertisingId?.let  { fa.setUserProperty("advertising_id", it) }
 
         fc.setUserId(userId)
-        properties.email?.let         { fc.setCustomKey("user_email",     it) }
-        properties.deviceId?.let      { fc.setCustomKey("c_device_id",    it) }
-        properties.advertisingId?.let { fc.setCustomKey("advertising_id", it) }
+        properties.email?.let         { fc.setCustomKey("user_email",           it) }
+        properties.deviceId?.let      { fc.setCustomKey("c_device_id",          it) }
+        properties.advertisingId?.let { fc.setCustomKey("advertising_id",       it) }
+        // Link every crash report to the Amplitude session so you can pull the
+        // session replay for the exact user who hit the crash.
+        val ampSessionId = AmplitudeTracker.sessionId
+        if (ampSessionId > 0) fc.setCustomKey("amplitude_session_id", ampSessionId)
     }
     private fun Int.toOrderCountBucket() = when {
         this == 0  -> "0"
@@ -426,7 +431,7 @@ class FirebaseTracker @Inject constructor() : AnalyticsTracker {
         detail: String
     ) : Exception("[$screen/$code] $detail")
 
-    // GA4 bundle builders ───────────────────────────────────────────────────────────
+    // GA4 bundle builders ─────────────────────────────────────────────────────────────────────────
     private fun viewItemBundle(e: AnalyticsEvent.ProductViewed) = Bundle().apply {
         putString(FirebaseAnalytics.Param.CURRENCY, "IDR")
         putDouble(FirebaseAnalytics.Param.VALUE, e.price)
@@ -636,6 +641,7 @@ class PostHogTracker @Inject constructor(
     }
 
     override fun track(event: AnalyticsEvent) {
+        if (!Statsig.checkGate("sdk_posthog_enabled")) return
         when (event) {
             is AnalyticsEvent.ScreenView -> {
                 if (BuildConfig.DEBUG) Log.d("Analytics", "[PostHog] screen: ${event.screenName} (${event.screenClass})")
@@ -718,10 +724,11 @@ class MixpanelTracker @Inject constructor(
 
     private lateinit var mp: MixpanelAPI
 
+    // SDK Initialization ──────────────────────────────────────────────────────────────────────────
     override suspend fun initialize() {
         mp = MixpanelAPI.getInstance(context, BuildConfig.MIXPANEL_TOKEN, true)
 
-        // Pre-decide whether this session will be recorded (20% debug / 40% prod)
+        // Pre-decide whether this session will be recorded
         // so we can report the decision to SessionReplayLogger before initializing.
         val sessionRecorded = Math.random() < 0.4
         SessionReplayLogger.record("Mixpanel", sessionRecorded, debugPct = 40, prodPct = 40)
@@ -736,6 +743,7 @@ class MixpanelTracker @Inject constructor(
     }
 
     override fun track(event: AnalyticsEvent) {
+        if (!Statsig.checkGate("sdk_mixpanel_enabled")) return
         val props = event.toProperties().toMixpanelProps()
 
         when (event) {
@@ -819,7 +827,7 @@ class MixpanelTracker @Inject constructor(
         if (enabled) mp.optInTracking() else mp.optOutTracking()
     }
 
-    // Helper ───────────────────────────────────────────────────────────
+    // Helper ──────────────────────────────────────────────────────────────────────────────────────
     private fun Map<String, Any>.toMixpanelProps(): JSONObject = JSONObject().apply {
         forEach { (key, value) ->
             when (value) {
@@ -847,12 +855,12 @@ class AppsFlyerTracker @Inject constructor(
         // so AF can correctly attribute campaigns using redirect chains.
         AppsFlyerLib.getInstance().setResolveDeepLinkURLs("marketapp.onelink.me")
 
-        // AppsFlyer consent ───────────────────────────────────────────────────────
+        // AppsFlyer consent ───────────────────────────────────────────────────────────────────────
         // Default to non-GDPR; updated when the user responds to the consent sheet
         // via setAnalyticsConsent(). On GDPR regions, override with forGDPRUser().
         AppsFlyerLib.getInstance().setConsentData(AppsFlyerConsent.forNonGDPRUser())
 
-        // Extended Deferred Deep Linking ──────────────────────────────────────────
+        // Extended Deferred Deep Linking ──────────────────────────────────────────────────────────
         // Fires on every launch. onConversionDataSuccess fires immediately when
         // AF returns install-conversion data. The is_first_launch guard ensures we
         // only route the user on genuine new installs, not re-opens.
@@ -886,7 +894,7 @@ class AppsFlyerTracker @Inject constructor(
             }
         })
 
-        // Unified Deep Linking ────────────────────────────────────────────────────
+        // Unified Deep Linking ────────────────────────────────────────────────────────────────────
         // Handles direct deep links (app already installed) and deferred deep links
         AppsFlyerLib.getInstance().subscribeForDeepLink({ result ->
             when (result.status) {
@@ -921,6 +929,7 @@ class AppsFlyerTracker @Inject constructor(
     }
 
     override fun track(event: AnalyticsEvent) {
+        if (!Statsig.checkGate("sdk_appsflyer_enabled")) return
         val eventName: String
         val params: Map<String, Any>
 
@@ -1066,8 +1075,7 @@ class AppsFlyerTracker @Inject constructor(
         AppsFlyerLib.getInstance().logEvent(context, eventName, params)
     }
 
-    // ── Braze integration ─────────────────────────────────────────────────────
-
+    // Braze integration ───────────────────────────────────────────────────────────────────────────
     /**
      * Called after ALL trackers have initialized, so Braze is guaranteed ready.
      * Sets brazeCustomerId in AF additional data so every AF postback carries the
@@ -1166,6 +1174,7 @@ class MicrosoftClarityTracker @Inject constructor(
 
     override fun track(event: AnalyticsEvent) {
         if (!consentEnabled) return
+        if (!Statsig.checkGate("sdk_clarity_enabled")) return
         if (event is AnalyticsEvent.ScreenView) {
             Clarity.setCurrentScreenName(event.screenName)
         }
@@ -1314,8 +1323,6 @@ class MicrosoftClarityTracker @Inject constructor(
  *  - Geofences: enabled with automatic location requests; call onLocationPermissionGranted()
  *    from the Activity/ViewModel after ACCESS_FINE_LOCATION is granted at runtime
  *
- * Push: configure your FCM Sender ID (940226439607) in the Braze dashboard under
- *   App Settings → Push Notifications → Android so Braze can dispatch notifications.
  */
 @Singleton
 class BrazeTracker @Inject constructor(
@@ -1357,14 +1364,14 @@ class BrazeTracker @Inject constructor(
         // Pre-fetch content cards so banners are available immediately when the
         // user navigates to a screen that shows the BrazeContentCardsActivity.
         com.braze.Braze.getInstance(context).requestContentCardsRefresh()
-        // Note: Braze Banners (BannerView) requires a newer SDK version. Upgrade braze > 33.0.0 to enable.
     }
 
     override fun track(event: AnalyticsEvent) {
         if (!consentEnabled) return
+        if (!Statsig.checkGate("sdk_braze_enabled")) return
         val braze = com.braze.Braze.getInstance(context)
         when (event) {
-            // ── ecommerce.product_viewed ─────────────────────────────────────
+            // ecommerce.product_viewed ────────────────────────────────────────────────────────────
             is AnalyticsEvent.ProductViewed -> {
                 braze.logCustomEvent(
                     "ecommerce.product_viewed",
@@ -1378,7 +1385,7 @@ class BrazeTracker @Inject constructor(
                     }
                 )
             }
-            // ── ecommerce.cart_updated (add) ───────────────────────────────────
+            // ecommerce.cart_updated (add) ────────────────────────────────────────────────────────
             is AnalyticsEvent.AddToCart -> {
                 braze.logCustomEvent(
                     "ecommerce.cart_updated",
@@ -1392,7 +1399,7 @@ class BrazeTracker @Inject constructor(
                     }
                 )
             }
-            // ── ecommerce.cart_updated (remove) ───────────────────────────────
+            // ecommerce.cart_updated (remove) ─────────────────────────────────────────────────────
             is AnalyticsEvent.RemoveFromCart -> {
                 braze.logCustomEvent(
                     "ecommerce.cart_updated",
@@ -1412,7 +1419,7 @@ class BrazeTracker @Inject constructor(
                     }
                 )
             }
-            // ── ecommerce.checkout_started ────────────────────────────────────
+            // ecommerce.checkout_started ──────────────────────────────────────────────────────────
             is AnalyticsEvent.CheckoutStarted -> {
                 braze.logCustomEvent(
                     "ecommerce.checkout_started",
@@ -1424,7 +1431,7 @@ class BrazeTracker @Inject constructor(
                     }
                 )
             }
-            // ── ecommerce.order_placed + logPurchase ──────────────────────────
+            // ecommerce.order_placed + logPurchase ────────────────────────────────────────────────
             is AnalyticsEvent.OrderPlaced -> {
                 // Braze recommended event
                 braze.logCustomEvent(
@@ -1457,7 +1464,7 @@ class BrazeTracker @Inject constructor(
                 // Flush immediately on purchase — revenue events must never wait in the queue.
                 braze.requestImmediateDataFlush()
             }
-            // ── ecommerce.order_refunded ──────────────────────────────────────
+            // ecommerce.order_refunded ────────────────────────────────────────────────────────────
             is AnalyticsEvent.OrderRefunded -> {
                 braze.logCustomEvent(
                     "ecommerce.order_refunded",
@@ -1472,7 +1479,7 @@ class BrazeTracker @Inject constructor(
                     }
                 )
             }
-            // ── onboarding_completed ──────────────────────────────────────────
+            // onboarding_completed ────────────────────────────────────────────────────────────────
             is AnalyticsEvent.OnboardingCompleted -> {
                 braze.logCustomEvent(
                     "onboarding_completed",
@@ -1481,11 +1488,11 @@ class BrazeTracker @Inject constructor(
                     }
                 )
             }
-            // ── subscribe ─────────────────────────────────────────────────────
+            // group subscription ──────────────────────────────────────────────────────────────────
             is AnalyticsEvent.Subscribe -> {
                 braze.logCustomEvent("subscribe")
             }
-            // ── All other events — generic custom event ───────────────────────
+            // all other events — generic custom event ─────────────────────────────────────────────
             else -> {
                 val props = event.toProperties().filterValues { it !is List<*> }
                 if (props.isEmpty()) {
@@ -1597,7 +1604,7 @@ class BrazeTracker @Inject constructor(
         }
     }
 
-    // ── Helpers ───────────────────────────────────────────────────────────────
+    // Helpers ─────────────────────────────────────────────────────────────────────────────────────
     /** Flat Map → BrazeProperties (used by the generic fallback branch). */
     private fun Map<String, Any>.toBrazeProperties(): com.braze.models.outgoing.BrazeProperties =
         com.braze.models.outgoing.BrazeProperties().also { bp ->
@@ -1672,6 +1679,7 @@ class OneSignalTracker @Inject constructor(
     }
 
     override fun track(event: AnalyticsEvent) {
+        if (!Statsig.checkGate("sdk_onesignal_enabled")) return
         // OneSignal is push-focused — log outcomes for conversion attribution.
         when (event) {
             is AnalyticsEvent.OrderPlaced        ->

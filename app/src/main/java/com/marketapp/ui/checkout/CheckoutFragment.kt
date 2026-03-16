@@ -1,10 +1,17 @@
 package com.marketapp.ui.checkout
 
+import android.content.res.ColorStateList
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
+import com.braze.Braze
+import com.braze.events.FeatureFlagsUpdatedEvent
+import com.braze.events.IEventSubscriber
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.lifecycle.Lifecycle
@@ -14,9 +21,14 @@ import androidx.navigation.fragment.findNavController
 import androidx.navigation.fragment.navArgs
 import com.marketapp.R
 import com.marketapp.analytics.AnalyticsManager
+import com.marketapp.config.BrazeFlag
+import com.marketapp.config.ExperimentManager
+import com.marketapp.config.FeatureFlag
 import com.marketapp.databinding.FragmentCheckoutBinding
 import com.marketapp.databinding.FragmentCheckoutPaymentBinding
 import com.marketapp.databinding.FragmentOrderConfirmationBinding
+import androidx.core.content.ContextCompat
+import androidx.core.view.isVisible
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 import kotlinx.coroutines.flow.collectLatest
@@ -78,6 +90,12 @@ class PaymentFragment : Fragment() {
 
     private val viewModel: CheckoutViewModel by activityViewModels()
 
+    @Inject lateinit var experiments: ExperimentManager
+
+    // Held in a field so Braze's WeakReference doesn't GC it before the callback fires.
+    private var featureFlagsSubscriber: IEventSubscriber<FeatureFlagsUpdatedEvent>? = null
+    private val handler = Handler(Looper.getMainLooper())
+
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?) =
         FragmentCheckoutPaymentBinding.inflate(inflater, container, false).also { _binding = it }.root
 
@@ -85,11 +103,36 @@ class PaymentFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
         binding.toolbar.setNavigationOnClickListener { findNavController().popBackStack() }
 
+        // COD kill switch — hidden by default when flag is off (e.g. region without COD).
+        binding.rbCod.isVisible = experiments.isEnabled(FeatureFlag.PAYMENT_METHOD_COD_ENABLED)
+
+        // Override CTA text from Braze Feature Flag — targeted per user segment.
+        // Braze flags are cached at session start; subscribe to updates so a flag
+        // created after the last launch is picked up without requiring an app restart.
+        applyBrazeCtaFlag()
+        val braze = Braze.getInstance(requireContext())
+        featureFlagsSubscriber = IEventSubscriber { _ ->
+            Log.d(TAG, "FeatureFlagsUpdatedEvent received — re-applying CTA flag")
+            activity?.runOnUiThread { if (_binding != null) applyBrazeCtaFlag() }
+        }
+        braze.subscribeToFeatureFlagsUpdates(featureFlagsSubscriber!!)
+        Log.d(TAG, "Requesting Braze feature flags refresh…")
+        braze.refreshFeatureFlags()
+
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 viewModel.cart.collectLatest { cart ->
+                    val shippingFee = viewModel.shippingFeeIdr()
+                    val isFree = shippingFee == 0.0
                     binding.tvSubtotal.text = cart.formattedTotal
-                    binding.tvTotal.text    = cart.formattedTotal
+                    binding.tvShipping.text = viewModel.formattedShippingFee()
+                    binding.tvShipping.setTextColor(
+                        ContextCompat.getColor(
+                            requireContext(),
+                            if (isFree) R.color.success else R.color.text_primary
+                        )
+                    )
+                    binding.tvTotal.text = viewModel.formattedGrandTotal()
                 }
             }
         }
@@ -99,6 +142,7 @@ class PaymentFragment : Fragment() {
                 binding.rbCard.id      -> "card"
                 binding.rbPaypal.id   -> "paypal"
                 binding.rbGooglepay.id -> "google_pay"
+                binding.rbCod.id       -> "cod"
                 else                   -> "card"
             }
             // GA4: add_payment_info — purchase fires on the confirmation screen.
@@ -109,7 +153,32 @@ class PaymentFragment : Fragment() {
         }
     }
 
-    override fun onDestroyView() { super.onDestroyView(); _binding = null }
+    private fun applyBrazeCtaFlag() {
+        val flag = experiments.getBrazeFeatureFlag(BrazeFlag.CHECKOUT_CTA.key)
+        val label = flag?.getStringProperty("label")
+        Log.d(TAG, "applyBrazeCtaFlag: flag=${flag?.id ?: "null"} enabled=${flag?.enabled} label=$label")
+        if (flag?.enabled == true) {
+            label?.let { binding.placeOrderBtn.text = it }
+            binding.placeOrderBtn.backgroundTintList = ColorStateList.valueOf(
+                ContextCompat.getColor(requireContext(), R.color.success)
+            )
+        }
+    }
+
+    companion object {
+        private const val TAG = "PaymentFragment"
+    }
+
+    override fun onDestroyView() {
+        super.onDestroyView()
+        handler.removeCallbacksAndMessages(null)
+        featureFlagsSubscriber?.let {
+            Braze.getInstance(requireContext())
+                .removeSingleSubscription(it, FeatureFlagsUpdatedEvent::class.java)
+        }
+        featureFlagsSubscriber = null
+        _binding = null
+    }
 }
 
 // ── Order Confirmation ────────────────────────────────────────────────────────
@@ -137,6 +206,18 @@ class OrderConfirmationFragment : Fragment() {
         analyticsManager.maskView(binding.tvOrderId)
         // GA4: purchase — fires here once the order is confirmed and visible to the user.
         viewModel.onOrderConfirmed()
+
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                viewModel.aiOrderMessage.collect { msg ->
+                    if (msg.isNotEmpty()) {
+                        binding.tvAiMessage.text = msg
+                        binding.tvAiMessage.isVisible = true
+                    }
+                }
+            }
+        }
+
         binding.btnContinueShopping.setOnClickListener {
             findNavController().navigate(
                 OrderConfirmationFragmentDirections.actionGlobalHomeFragment()

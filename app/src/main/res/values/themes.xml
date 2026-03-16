@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <style name="Theme.MarketApp" parent="Theme.Material3.Light.NoActionBar">
+    <style name="Theme.MarketApp" parent="Theme.Material3.DayNight.NoActionBar">
         <!-- Colors -->
         <item name="colorPrimary">@color/primary</item>
         <item name="colorPrimaryDark">@color/primary_dark</item>
@@ -11,11 +11,9 @@
         <item name="android:colorBackground">@color/background</item>
         <item name="colorError">@color/error</item>
 
-        <!-- System bars -->
+        <!-- System bars — light/dark icon tints handled by DayNight parent -->
         <item name="android:statusBarColor">@color/status_bar</item>
         <item name="android:navigationBarColor">@color/nav_bar</item>
-        <item name="android:windowLightStatusBar">true</item>
-        <item name="android:windowLightNavigationBar">true</item>
 
         <!-- Typography -->
         <item name="android:fontFamily">sans-serif</item>
@@ -24,7 +22,7 @@
         <item name="android:colorControlHighlight">#1A007AFF</item>
 
         <!-- Splash -->
-        <item name="android:windowBackground">@color/white</item>
+        <item name="android:windowBackground">@color/background</item>
 
         <!-- Shape system — rounded like iOS -->
         <item name="shapeAppearanceSmallComponent">@style/ShapeSmall</item>

@@ -57,6 +57,17 @@
 
     </LinearLayout>
 
+    <TextView
+        android:id="@+id/tv_ai_message"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/spacing_20"
+        android:gravity="center"
+        android:textAppearance="@style/TextAppearance.MarketApp.Body"
+        android:textColor="@color/text_secondary"
+        android:textStyle="italic"
+        android:visibility="gone" />
+
     <Button
         android:id="@+id/btn_continue_shopping"
         style="@style/Widget.MarketApp.Button.Primary"

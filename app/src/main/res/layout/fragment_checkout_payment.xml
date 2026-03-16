@@ -94,6 +94,15 @@
                         android:buttonTint="@color/primary"
                         android:textAppearance="@style/TextAppearance.MarketApp.Body" />
 
+                    <RadioButton
+                        android:id="@+id/rb_cod"
+                        android:layout_width="match_parent"
+                        android:layout_height="48dp"
+                        android:text="Cash on Delivery"
+                        android:paddingStart="@dimen/spacing_8"
+                        android:buttonTint="@color/primary"
+                        android:textAppearance="@style/TextAppearance.MarketApp.Body" />
+
                 </RadioGroup>
 
             </com.google.android.material.card.MaterialCardView>
@@ -154,11 +163,10 @@
                             android:textAppearance="@style/TextAppearance.MarketApp.Body"
                             android:textColor="@color/text_secondary" />
                         <TextView
+                            android:id="@+id/tv_shipping"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="Free"
-                            android:textAppearance="@style/TextAppearance.MarketApp.Body"
-                            android:textColor="@color/success" />
+                            android:textAppearance="@style/TextAppearance.MarketApp.Body" />
                     </LinearLayout>
 
                     <View
