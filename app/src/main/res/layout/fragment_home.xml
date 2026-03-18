@@ -52,6 +52,24 @@
 
         </androidx.appcompat.widget.Toolbar>
 
+        <HorizontalScrollView
+            android:id="@+id/scroll_categories"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:scrollbars="none"
+            android:paddingHorizontal="@dimen/screen_padding"
+            android:paddingBottom="@dimen/spacing_12"
+            android:visibility="gone">
+
+            <com.google.android.material.chip.ChipGroup
+                android:id="@+id/chip_group_categories"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                app:singleSelection="false"
+                app:chipSpacingHorizontal="@dimen/spacing_8" />
+
+        </HorizontalScrollView>
+
     </com.google.android.material.appbar.AppBarLayout>
 
     <LinearLayout
@@ -59,31 +77,6 @@
         android:layout_height="match_parent"
         android:orientation="vertical"
         app:layout_behavior="@string/appbar_scrolling_view_behavior">
-
-        <FrameLayout
-            android:id="@+id/banner_container"
-            android:layout_width="match_parent"
-            android:layout_height="@dimen/banner_max_height"
-            android:visibility="gone">
-
-            <com.braze.ui.banners.BannerView
-                android:id="@+id/braze_banner"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                app:placementId="home_banner" />
-
-            <ImageButton
-                android:id="@+id/btn_close_banner"
-                android:layout_width="32dp"
-                android:layout_height="32dp"
-                android:layout_gravity="top|end"
-                android:layout_margin="8dp"
-                android:src="@drawable/ic_close"
-                android:tint="@color/text_secondary"
-                android:background="?attr/selectableItemBackgroundBorderless"
-                android:contentDescription="Close banner" />
-
-        </FrameLayout>
 
 <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
             android:id="@+id/swipe_refresh"
@@ -101,6 +94,36 @@
         </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
 
     </LinearLayout>
+
+    <!-- Braze home banner — floats over content at the bottom of the screen -->
+    <FrameLayout
+        android:id="@+id/banner_container"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom"
+        android:layout_marginHorizontal="@dimen/screen_padding"
+        android:layout_marginBottom="@dimen/spacing_16"
+        android:elevation="4dp"
+        android:visibility="gone">
+
+        <com.braze.ui.banners.BannerView
+            android:id="@+id/braze_banner"
+            android:layout_width="match_parent"
+            android:layout_height="@dimen/banner_max_height"
+            app:placementId="home_banner" />
+
+        <ImageButton
+            android:id="@+id/btn_close_banner"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:layout_gravity="top|end"
+            android:layout_margin="8dp"
+            android:src="@drawable/ic_close"
+            android:tint="@color/text_secondary"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="Close banner" />
+
+    </FrameLayout>
 
     <!-- Skeleton shimmer — shown only during initial (non-swipe-refresh) load -->
     <com.facebook.shimmer.ShimmerFrameLayout

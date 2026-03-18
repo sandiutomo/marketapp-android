@@ -1,9 +1,11 @@
 package com.marketapp.ui.home
 
 import android.os.Bundle
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.Lifecycle
@@ -11,11 +13,16 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.ConcatAdapter
+import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import com.braze.Braze
 import com.braze.events.BannersUpdatedEvent
 import com.braze.events.IEventSubscriber
+import com.google.android.material.chip.Chip
 import com.marketapp.R
+import com.marketapp.config.ALL_BANNER_PLACEMENTS
+import com.marketapp.config.BannerDismissManager
 import com.marketapp.config.ExperimentManager
 import com.marketapp.config.FeatureFlag
 import com.marketapp.config.PostHogFlag
@@ -50,19 +57,23 @@ class HomeFragment : Fragment() {
         setupSwipeRefresh()
         observeProducts()
         observePromotions()
+        observeCategories()
         val braze = Braze.getInstance(requireContext())
         bannerSubscriber = IEventSubscriber { event ->
             val banner = event.getBanner("home_banner")
-            val hasContent = banner != null && !banner.html.isNullOrEmpty() && !banner.isControl && !banner.isExpired()
+            val html = banner?.html
+            val hasContent = banner != null && !html.isNullOrEmpty() && !banner.isControl && !banner.isExpired()
+            val show = hasContent && BannerDismissManager.shouldShow("home_banner", html!!)
             activity?.runOnUiThread {
                 if (_binding != null) {
-                    binding.bannerContainer.visibility = if (hasContent) View.VISIBLE else View.GONE
+                    binding.bannerContainer.visibility = if (show) View.VISIBLE else View.GONE
                 }
             }
         }
         braze.subscribeToBannersUpdates(bannerSubscriber!!)
-        braze.requestBannersRefresh(listOf("home_banner"))
+        braze.requestBannersRefresh(ALL_BANNER_PLACEMENTS)
         binding.btnCloseBanner.setOnClickListener {
+            BannerDismissManager.dismiss("home_banner")
             binding.bannerContainer.visibility = View.GONE
         }
     }
@@ -94,19 +105,58 @@ class HomeFragment : Fragment() {
     private fun setupRecycler() {
         adapter = ProductAdapter(
             isWishlistEnabled = { experiments.isEnabled(FeatureFlag.WISHLIST_ENABLED) }
-        ) { product, _ -> navigateToProduct(product.id) }
+        ) { product, position ->
+            viewModel.onProductSelected(product, position)
+            navigateToProduct(product.id)
+        }
 
         // Re-render cards once the async RC fetch completes, so flags changed in the console
         // take effect immediately rather than requiring a second relaunch.
         experiments.doOnRcFetchComplete { adapter.notifyItemRangeChanged(0, adapter.itemCount) }
         promotionAdapter = PromotionAdapter { promo -> viewModel.onPromotionTapped(promo) }
         promotionsHeaderAdapter = PromotionsHeaderAdapter(promotionAdapter)
-        binding.recyclerHome.apply {
-            layoutManager = LinearLayoutManager(requireContext()).also {
-                it.initialPrefetchItemCount = 4
+
+        // Amplitude Experiment: home_layout — "grid" (2-col) vs control (list).
+        // Dashboard: Amplitude → Experiment → create flag key "home_layout",
+        //   variants: control (default) and "grid".
+        val layoutVariant = experiments.getAmplitudeVariant("home_layout")
+        Log.d("HomeLayout", "setupRecycler: variant=\"$layoutVariant\" (cached)")
+        val layoutManager: RecyclerView.LayoutManager = if (layoutVariant == "treatment") {
+            adapter.compact = true
+            GridLayoutManager(requireContext(), 2).also { glm ->
+                glm.spanSizeLookup = object : GridLayoutManager.SpanSizeLookup() {
+                    override fun getSpanSize(position: Int) =
+                        if (position < promotionsHeaderAdapter.itemCount) 2 else 1
+                }
             }
+        } else {
+            LinearLayoutManager(requireContext()).also { it.initialPrefetchItemCount = 4 }
+        }
+        if (layoutVariant != null) experiments.trackMixpanelExposure("home_layout", layoutVariant)
+
+        binding.recyclerHome.apply {
+            this.layoutManager = layoutManager
             adapter = ConcatAdapter(promotionsHeaderAdapter, this@HomeFragment.adapter)
             setHasFixedSize(true)
+        }
+
+        // On first launch there is no cached variant yet — re-apply layout once the async
+        // Amplitude Experiment fetch completes and the variant becomes available.
+        experiments.doOnAmplitudeExperimentFetchComplete {
+            if (_binding == null) return@doOnAmplitudeExperimentFetchComplete
+            val fetchedVariant = experiments.getAmplitudeVariant("home_layout")
+            Log.d("HomeLayout", "fetchComplete: variant=\"$fetchedVariant\"")
+            if (fetchedVariant == "treatment" && binding.recyclerHome.layoutManager !is GridLayoutManager) {
+                adapter.compact = true
+                binding.recyclerHome.layoutManager = GridLayoutManager(requireContext(), 2).also { glm ->
+                    glm.spanSizeLookup = object : GridLayoutManager.SpanSizeLookup() {
+                        override fun getSpanSize(position: Int) =
+                            if (position < promotionsHeaderAdapter.itemCount) 2 else 1
+                    }
+                }
+                adapter.notifyItemRangeChanged(0, adapter.itemCount)
+                experiments.trackMixpanelExposure("home_layout", fetchedVariant)
+            }
         }
     }
 
@@ -158,6 +208,32 @@ class HomeFragment : Fragment() {
                 viewModel.promotions.collectLatest { promos ->
                     promotionAdapter.submitList(promos)
                     promotionsHeaderAdapter.setVisible(promos.isNotEmpty())
+                }
+            }
+        }
+    }
+
+    private fun observeCategories() {
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                viewModel.categories.collectLatest { categories ->
+                    binding.scrollCategories.isVisible = categories.isNotEmpty()
+                    binding.chipGroupCategories.removeAllViews()
+                    categories.forEach { slug ->
+                        val chip = Chip(requireContext()).apply {
+                            text = slug.replaceFirstChar { it.uppercaseChar() }
+                            isCheckable = false
+                            setEnsureMinTouchTargetSize(false)
+                        }
+                        chip.setOnClickListener {
+                            viewModel.onCategorySelected(slug)
+                            findNavController().navigate(
+                                R.id.action_home_to_category,
+                                Bundle().apply { putString("category", slug) }
+                            )
+                        }
+                        binding.chipGroupCategories.addView(chip)
+                    }
                 }
             }
         }

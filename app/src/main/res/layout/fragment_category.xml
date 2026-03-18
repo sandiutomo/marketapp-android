@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.coordinatorlayout.widget.CoordinatorLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/background">
+
+    <com.google.android.material.appbar.AppBarLayout
+        android:id="@+id/app_bar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/background"
+        app:elevation="0dp">
+
+        <com.google.android.material.appbar.MaterialToolbar
+            android:id="@+id/toolbar"
+            android:layout_width="match_parent"
+            android:layout_height="?attr/actionBarSize"
+            app:navigationIcon="@drawable/ic_back"
+            app:navigationIconTint="@color/text_primary" />
+
+    </com.google.android.material.appbar.AppBarLayout>
+
+    <!-- Product list -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rv_products"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:clipToPadding="false"
+        android:paddingBottom="16dp"
+        android:visibility="gone"
+        app:layout_behavior="@string/appbar_scrolling_view_behavior" />
+
+    <!-- Skeleton shimmer — shown during load -->
+    <com.facebook.shimmer.ShimmerFrameLayout
+        android:id="@+id/shimmer"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        app:layout_behavior="@string/appbar_scrolling_view_behavior"
+        android:visibility="gone">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingTop="4dp">
+
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="@dimen/screen_padding"
+                android:layout_marginBottom="@dimen/spacing_12"
+                app:cardCornerRadius="@dimen/card_radius"
+                app:cardElevation="0dp"
+                app:strokeWidth="0dp"
+                app:cardBackgroundColor="@color/surface">
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
+                    <View android:layout_width="match_parent" android:layout_height="@dimen/product_card_image_height" android:background="@color/gray_5" />
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:paddingHorizontal="@dimen/spacing_16" android:paddingTop="@dimen/spacing_12" android:paddingBottom="@dimen/spacing_16">
+                        <View android:layout_width="80dp" android:layout_height="12dp" android:background="@color/gray_5" />
+                        <View android:layout_width="match_parent" android:layout_height="16dp" android:layout_marginTop="8dp" android:background="@color/gray_5" />
+                        <View android:layout_width="160dp" android:layout_height="16dp" android:layout_marginTop="4dp" android:background="@color/gray_5" />
+                    </LinearLayout>
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="@dimen/screen_padding"
+                android:layout_marginBottom="@dimen/spacing_12"
+                app:cardCornerRadius="@dimen/card_radius"
+                app:cardElevation="0dp"
+                app:strokeWidth="0dp"
+                app:cardBackgroundColor="@color/surface">
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
+                    <View android:layout_width="match_parent" android:layout_height="@dimen/product_card_image_height" android:background="@color/gray_5" />
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:paddingHorizontal="@dimen/spacing_16" android:paddingTop="@dimen/spacing_12" android:paddingBottom="@dimen/spacing_16">
+                        <View android:layout_width="80dp" android:layout_height="12dp" android:background="@color/gray_5" />
+                        <View android:layout_width="match_parent" android:layout_height="16dp" android:layout_marginTop="8dp" android:background="@color/gray_5" />
+                        <View android:layout_width="160dp" android:layout_height="16dp" android:layout_marginTop="4dp" android:background="@color/gray_5" />
+                    </LinearLayout>
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="@dimen/screen_padding"
+                android:layout_marginBottom="@dimen/spacing_12"
+                app:cardCornerRadius="@dimen/card_radius"
+                app:cardElevation="0dp"
+                app:strokeWidth="0dp"
+                app:cardBackgroundColor="@color/surface">
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
+                    <View android:layout_width="match_parent" android:layout_height="@dimen/product_card_image_height" android:background="@color/gray_5" />
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:paddingHorizontal="@dimen/spacing_16" android:paddingTop="@dimen/spacing_12" android:paddingBottom="@dimen/spacing_16">
+                        <View android:layout_width="80dp" android:layout_height="12dp" android:background="@color/gray_5" />
+                        <View android:layout_width="match_parent" android:layout_height="16dp" android:layout_marginTop="8dp" android:background="@color/gray_5" />
+                        <View android:layout_width="160dp" android:layout_height="16dp" android:layout_marginTop="4dp" android:background="@color/gray_5" />
+                    </LinearLayout>
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+        </LinearLayout>
+
+    </com.facebook.shimmer.ShimmerFrameLayout>
+
+    <!-- Error state -->
+    <LinearLayout
+        android:id="@+id/error_view"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:padding="@dimen/spacing_32"
+        android:visibility="gone"
+        app:layout_behavior="@string/appbar_scrolling_view_behavior">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/error_generic"
+            android:textAppearance="@style/TextAppearance.MarketApp.Callout"
+            android:textColor="@color/text_secondary"
+            android:gravity="center" />
+
+        <Button
+            android:id="@+id/btn_retry"
+            style="@style/Widget.MarketApp.Button.Secondary"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/spacing_16"
+            android:text="@string/retry" />
+
+    </LinearLayout>
+
+</androidx.coordinatorlayout.widget.CoordinatorLayout>

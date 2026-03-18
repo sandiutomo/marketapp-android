@@ -33,6 +33,30 @@ class ConsentBottomSheet : BottomSheetDialogFragment() {
         appPreferences.notificationsEnabled = granted
     }
 
+    // Two-step location permission chain required by Android:
+    //   Step 1 — ACCESS_FINE_LOCATION (all versions)
+    //   Step 2 — ACCESS_BACKGROUND_LOCATION (API 29+ only, must follow step 1)
+    // Geofences activate as soon as fine location is granted; background location
+    // extends firing to when the app is not in the foreground.
+    private val backgroundLocationLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { dismiss() }
+
+    private val fineLocationLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (!granted) {
+            dismiss()
+            return@registerForActivityResult
+        }
+        analyticsManager.requestLocationInitialization()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            backgroundLocationLauncher.launch(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+        } else {
+            dismiss()
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         // Must not be cancellable — user has to make an explicit choice.
@@ -98,7 +122,16 @@ class ConsentBottomSheet : BottomSheetDialogFragment() {
             }
         }
 
-        dismiss()
+        // Request location when analytics is on — geofences are a marketing feature.
+        // Fine location fires immediately; background location is chained inside the
+        // fineLocationLauncher callback so Android's sequential-request rule is respected.
+        // dismiss() is deferred to the end of the launcher chain so the fragment stays
+        // alive long enough to receive the result and call requestLocationInitialization().
+        if (analyticsOn) {
+            fineLocationLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+        } else {
+            dismiss()
+        }
     }
 
     override fun onDestroyView() {

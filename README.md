@@ -62,6 +62,14 @@ UI / ViewModel
 - 200 ms deduplication prevents double-fire on rapid re-renders.
 - `SupervisorJob` — one SDK crashing or timing out does not block the others.
 
+**Platform-exclusive event routing**
+
+Some events target only one platform. `AnalyticsEvent` exposes:
+- `isBrazeOnly` — TriggerPushTest, TriggerBannerTest, TriggerInAppTest, TriggerContentCardTest
+- `isAmplitudeOnly` — TriggerAmplitudeGuide
+
+Each of the other 10 trackers skips both; BrazeTracker skips `isAmplitudeOnly`; AmplitudeTracker skips `isBrazeOnly`.
+
 ---
 
 ## Tech Stack
@@ -100,7 +108,7 @@ UI / ViewModel
 | Mixpanel | 8.3.0 + Session Replay 1.0.6 | Funnel analysis, people profiles, session replay |
 | PostHog | 3.7.1 | Feature flags, session replay |
 | AppsFlyer | 6.15.2 | Mobile attribution, deep links, ROAS |
-| Braze | 33.1.0 | CRM, push, in-app messages, content cards |
+| Braze | 33.1.0 | CRM, push, in-app messages, content cards, banners. Requires both `android-sdk-ui` + `android-sdk-location` for geofence/location support. |
 | OneSignal | 5.6.2 | Push, in-app messages, outcomes |
 | Microsoft Clarity | 3.8.1 | Heatmaps, session recordings |
 | Meta App Events | 18.0.3 | Meta pixel, conversion API |
@@ -210,14 +218,15 @@ All events use GA4 standard names and parameter keys wherever a standard exists.
 
 ### Debug only (`BuildConfig.DEBUG`)
 
-| Event | Trigger |
-|---|---|
-| `trigger_for_pushnotif` | QA panel → Test Push |
-| `trigger_for_banner` | QA panel → Test Banner |
-| `trigger_for_inapp` | QA panel → Test In-App |
-| `trigger_for_content_card` | QA panel → Test Content Card |
+| Event | Trigger | Reaches |
+|---|---|---|
+| `trigger_for_pushnotif` | QA panel → Test Push | **Braze only** |
+| `trigger_for_banner` | QA panel → Test Banner | **Braze only** |
+| `trigger_for_inapp` | QA panel → Test In-App | **Braze only** |
+| `trigger_for_content_card` | QA panel → Test Content Card | **Braze only** |
+| `trigger_for_amplitude_guide` | QA panel → Amplitude Guide Trigger | **Amplitude only** |
 
-All `trigger_*` events call `braze.requestImmediateDataFlush()` to force immediate campaign evaluation without the normal batch delay.
+`trigger_*` events are platform-exclusive — enforced via `isBrazeOnly` / `isAmplitudeOnly` on `AnalyticsEvent`. Braze triggers call `braze.requestImmediateDataFlush()` to force immediate campaign evaluation without the normal batch delay.
 
 ---
 
@@ -297,6 +306,8 @@ Powered by `firebase-ai` (BOM 33.14.0), backend: Google AI, model: `gemini-2.0-f
 | Order confirmation message | `order_ai_message_enabled` | `placeOrder()` | Empty string |
 | Home feed ranking | `product_recommendations_enabled` | `HomeViewModel` on load, when user has order history | Default product order |
 | Semantic search | `ai_search_enabled` | Keyboard Search / IME action, queries ≥ 4 chars | Keyword search |
+
+**Product order randomization:** The home product feed is shuffled on every load (`.shuffled()` in `HomeViewModel`) before AI ranking is applied. This prevents the same order appearing on every session when AI ranking is not active.
 
 **Search has two tiers:**
 - **Typing** (debounced 800 ms, ≥ 2 chars) — keyword search only, zero AI calls.
@@ -513,6 +524,8 @@ All default to `true` so the feature works offline and before the first fetch. S
 | `firestore_write_enabled` | Boolean | true | Firestore order writes after a successful purchase. |
 | `ai_order_message_enabled` | Boolean | true | Gemini-generated thank-you message on order confirmation. Screen still appears normally; message area is empty when disabled. |
 | `ai_search_enabled` | Boolean | true | Gemini semantic re-ranking on IME Search key press. Falls back to keyword search — no visible degradation to the user. |
+| `view_item_list_enabled` | Boolean | true | Gates `view_item_list` + `select_item` analytics events on home feed and search. Disable to suppress product-list events globally without a release. |
+| `request_refund_enabled` | Boolean | true | Shows the "Request Refund" button on order confirmation. Toggle off to pause the refund flow. |
 
 ### Feature rollouts
 
@@ -532,8 +545,6 @@ Numeric parameters tunable without a release. The app picks up new values on nex
 | Flag | Type | Default | Purpose |
 |---|---|---|---|
 | `free_shipping_threshold_idr` | Double | 5000000 | Minimum cart total (IDR) for free shipping. Orders below this are charged Rp 150.000 flat. Set `0` for a specific audience to make shipping always free. |
-| `cart_item_limit` | Long | 20 | Maximum distinct line-items per cart. When reached, the app blocks adding more items. |
-| `minimum_order_value_idr` | Double | 0 | Minimum cart total (IDR) to proceed to checkout. `0` disables the minimum. |
 | `max_shipping_days` | Long | 7 | Upper bound of the delivery window shown on order confirmation (e.g. "Delivered in 3–7 days"). Update during peak seasons without a release. |
 
 **LTV-based free shipping example** — `free_shipping_threshold_idr = 0` for high-LTV users:
@@ -572,6 +583,14 @@ AppCompatDelegate.setDefaultNightMode(
 )
 ```
 
+### home_layout
+
+| Field | Value |
+|---|---|
+| Flag key | `home_layout` |
+| Type | Feature flag |
+| Purpose | Controls the home screen product grid layout variant. Visible in Debug → SDK & Flag Status panel. |
+
 ---
 
 ## PostHog Feature Flags
@@ -593,6 +612,16 @@ Flags reload after `analytics.identify()` — call `experiments.reloadPostHogFla
 | `lets-shop` | `Let's find something great` | 25% | Action-oriented copy |
 
 **Adding a new copy variant without a code change:** PostHog → open `home-greeting-variant` → Add variant → set any key (e.g. `ramadan`) and value (e.g. `Ramadan Mubarak`) → assign percentage → Save. The app renders whatever string PostHog returns.
+
+### checkout-progress-bar
+
+| Field | Value |
+|---|---|
+| Key | `checkout-progress-bar` |
+| Flag type | Boolean |
+| Purpose | Shows a `LinearProgressIndicator` on both checkout steps (50% on shipping → 100% on payment). Target: users who abandoned checkout (viewed cart but did not purchase). |
+
+**Cohort setup:** PostHog → Cohorts → create filter: `view_cart` fired AND `purchase` never fired in last 30 days → set as release condition for this flag.
 
 ---
 
@@ -664,12 +693,14 @@ All gates are centralized here. Adding a gate automatically includes it in logca
 | `ai_order_message_enabled` | Firebase RC | Boolean |
 | `ai_search_enabled` | Firebase RC | Boolean |
 | `ai_product_sorting_enabled` | Firebase RC | Boolean |
+| `view_item_list_enabled` | Firebase RC | Boolean |
+| `request_refund_enabled` | Firebase RC | Boolean |
 | `free_shipping_threshold_idr` | Firebase RC | Double |
-| `cart_item_limit` | Firebase RC | Long |
-| `minimum_order_value_idr` | Firebase RC | Double |
 | `max_shipping_days` | Firebase RC | Long |
 | `dark-mode` | Amplitude Experiment | Experiment |
+| `home_layout` | Amplitude Experiment | Feature flag |
 | `home-greeting-variant` | PostHog | Multivariate flag |
+| `checkout-progress-bar` | PostHog | Boolean flag |
 | `checkout-cta` | Braze | Feature flag + properties |
 | `sdk_amplitude_enabled` | Statsig | Feature gate |
 | `sdk_facebook_enabled` | Statsig | Feature gate |
@@ -687,13 +718,24 @@ All gates are centralized here. Adding a gate automatically includes it in logca
 
 Visible at **Profile → Debug Card** on debug builds only.
 
-| Button | Action |
-|---|---|
-| Test Push | Fires `trigger_for_pushnotif` → Braze sends test push |
-| Test Banner | Fires `trigger_for_banner` → Braze shows banner campaign |
-| Test In-App | Fires `trigger_for_inapp` → Braze shows in-app message |
-| Test Content Card | Fires `trigger_for_content_card` + opens `ContentCardsBottomSheet` |
-| SDK & Flag Status | Opens `DebugInfoBottomSheet` — live view of all SDK gates and feature flags |
+| Button | Color | Action |
+|---|---|---|
+| SDK & Flag Status | Gray | Opens `DebugInfoBottomSheet` — live view of all SDK gates and feature flags |
+| Force Refresh Flags | Orange | Calls `RemoteConfigManager.forceRefresh()` + reloads Statsig, PostHog, Braze, and Amplitude flags |
+| Amplitude Guide Trigger | Amplitude Blue | Fires `trigger_for_amplitude_guide` → triggers an Amplitude Guide campaign |
+| Preview Amplitude Guide | Light Blue | Calls `AmplitudeTracker.handleLinkIntentWhenReady()` with preview URI for Guide ID 41685 |
+| Preview Amplitude Survey | Light Blue | Calls `AmplitudeTracker.handleLinkIntentWhenReady()` with preview URI for Survey ID 41053 |
+| Test Push | Braze Purple | Fires `trigger_for_pushnotif` → Braze sends test push |
+| Test Banner | Braze Purple | Fires `trigger_for_banner` → Braze shows banner campaign |
+| Test In-App | Braze Purple | Fires `trigger_for_inapp` → Braze shows in-app message |
+| Test Content Card | Braze Purple | Fires `trigger_for_content_card` + opens `ContentCardsBottomSheet` |
+
+#### Amplitude Guides & Surveys
+
+- `eng?.screen(destination)` is called on every navigation change in `MainActivity` — Amplitude uses this to evaluate guide triggers against the user's current screen.
+- Guide/Survey preview deep links use `amp-<deploymentKey>://gs/preview/<contentId>` URI scheme.
+- `AmplitudeTracker.handleLinkIntentWhenReady(intent)` queues the intent if the engagement SDK hasn't initialized yet (cold-start race), then dispatches once ready.
+- Update the preview URI constants in `ProfileFragment.kt` to match your own Guide/Survey IDs.
 
 ### SDK & Flag Status panel
 
@@ -858,11 +900,6 @@ app/src/main/java/com/marketapp/
 │   ├─ cart/                            CartFragment + ViewModel
 │   └─ checkout/                        CheckoutFragment, PaymentFragment, ConfirmationFragment
 └─ MainActivity.kt                      Deep link routing, Braze IAM lifecycle
-
-docs/
-├─ feature-flag-tracker.md              Unified flag reference across all platforms
-├─ feature-flagging-plan.md             5-scenario overview with code status
-└─ feature-flagging-dashboard-guide.md  Step-by-step dashboard config for all 5 scenarios
 ```
 
 ---
