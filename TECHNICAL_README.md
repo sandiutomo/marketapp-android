@@ -6,8 +6,6 @@
 ![Hilt](https://img.shields.io/badge/DI-Hilt-FF6F00?style=flat-square)
 ![MIT](https://img.shields.io/badge/License-MIT-yellow?style=flat-square)
 
-**[By Sandi Utomo](https://github.com/sandiutomo)** — [LinkedIn](https://www.linkedin.com/in/sandiutomo/)
-
 ---
 
 # MarketApp — Android Analytics Sample (Technical Documentation)
@@ -743,14 +741,14 @@ Revenue events sent **per line item** to seven SDKs:
 
 ---
 
-## License & Usage
+## License
 
-Free to use for personal learning, testing, and demo purposes. Attribution appreciated.
+Free to use for personal learning, testing, and demo purposes. Attribution appreciated. See LICENSE file for details.
 
-**This is a sample app.** SDKs, versions, and implementations may change over time. Use for learning and reference only — not for production deployments.
+**Note:** This is a living project. Analytics and martech SDKs evolve — some may be updated, removed, or added over time. Use this as a reference for current best practices, not as a static guide.
 
 ---
 
-**Made by Sandi Utomo**  
-[![LinkedIn](https://img.shields.io/badge/LinkedIn-0A66C2?style=flat-square&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/sandiutomo/)
-[![GitHub](https://img.shields.io/badge/GitHub-181717?style=flat-square&logo=github&logoColor=white)](https://github.com/sandiutomo)
+
+[![Sandi Utomo](https://img.shields.io/badge/Made%20by-Sandi%20Utomo%20😎-5A6AE8?style=flat-square&logo=github&logoColor=white)](https://github.com/sandiutomo)
+[![Sandi Utomo](https://img.shields.io/badge/LinkedIn-Sandi%20Utomo-0A66C2?style=flat-square&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/sandiutomo/)
