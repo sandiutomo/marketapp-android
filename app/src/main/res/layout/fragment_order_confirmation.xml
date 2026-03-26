@@ -76,4 +76,15 @@
         android:layout_marginTop="@dimen/spacing_40"
         android:text="Continue Shopping" />
 
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btn_refund"
+        style="@style/Widget.MarketApp.Button.Secondary"
+        android:layout_width="match_parent"
+        android:layout_height="@dimen/button_height"
+        android:layout_marginTop="@dimen/spacing_12"
+        android:text="Request Refund"
+        android:textColor="@color/error"
+        app:strokeColor="@color/error"
+        xmlns:app="http://schemas.android.com/apk/res-auto" />
+
 </LinearLayout>

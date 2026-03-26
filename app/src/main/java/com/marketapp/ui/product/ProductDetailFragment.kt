@@ -11,6 +11,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.fragment.findNavController
+import com.google.android.material.bottomnavigation.BottomNavigationView
 import androidx.navigation.fragment.navArgs
 import coil.load
 import com.google.android.material.snackbar.Snackbar
@@ -99,6 +100,8 @@ class ProductDetailFragment : Fragment() {
         binding.tvRating.text      = product.rating.rate.toString()
         binding.tvReviewCount.text = "(${product.rating.count})"
         binding.tvDescription.text = product.description
+        val maxDays = experiments.getLong(FeatureFlag.MAX_SHIPPING_DAYS)
+        binding.tvShippingDays.text = "🚚 Arrives in up to $maxDays days"
 
         binding.btnAddToCart.setOnClickListener { viewModel.addToCart() }
         binding.btnWishlist.setOnClickListener  { viewModel.toggleWishlist() }
@@ -121,7 +124,14 @@ class ProductDetailFragment : Fragment() {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 viewModel.addedToCart.collectLatest { added ->
                     if (added) {
-                        Snackbar.make(binding.root, getString(R.string.added_to_cart), Snackbar.LENGTH_SHORT).show()
+                        Snackbar.make(binding.root, getString(R.string.added_to_cart), Snackbar.LENGTH_SHORT)
+                            .setAction(getString(R.string.view_cart)) {
+                                findNavController().popBackStack()
+                                requireActivity()
+                                    .findViewById<BottomNavigationView>(R.id.bottom_nav)
+                                    .selectedItemId = R.id.cartFragment
+                            }
+                            .show()
                     }
                 }
             }

@@ -1,5 +1,6 @@
 package com.marketapp.ui.checkout
 
+import android.annotation.SuppressLint
 import android.content.res.ColorStateList
 import android.os.Bundle
 import android.os.Handler
@@ -20,10 +21,12 @@ import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.fragment.findNavController
 import androidx.navigation.fragment.navArgs
 import com.marketapp.R
+import com.marketapp.analytics.AnalyticsEvent
 import com.marketapp.analytics.AnalyticsManager
 import com.marketapp.config.BrazeFlag
 import com.marketapp.config.ExperimentManager
 import com.marketapp.config.FeatureFlag
+import com.marketapp.config.PostHogFlag
 import com.marketapp.databinding.FragmentCheckoutBinding
 import com.marketapp.databinding.FragmentCheckoutPaymentBinding
 import com.marketapp.databinding.FragmentOrderConfirmationBinding
@@ -45,15 +48,28 @@ class CheckoutFragment : Fragment() {
     // Shared across all checkout steps so perf trace + state spans the full funnel.
     private val viewModel: CheckoutViewModel by activityViewModels()
 
+    @Inject lateinit var experiments: ExperimentManager
+    @Inject lateinit var analyticsManager: AnalyticsManager
+
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?) =
         FragmentCheckoutBinding.inflate(inflater, container, false).also { _binding = it }.root
 
+    @SuppressLint("SetTextI18n")
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         binding.toolbar.setNavigationOnClickListener { findNavController().popBackStack() }
 
+        // Mask PII shipping fields in all session replay SDKs.
+        analyticsManager.maskView(binding.etName)
+        analyticsManager.maskView(binding.etAddress)
+        analyticsManager.maskView(binding.etCity)
+        analyticsManager.maskView(binding.etZip)
+        if (experiments.isPostHogFlagEnabled(PostHogFlag.CHECKOUT_PROGRESS_BAR.key)) {
+            binding.checkoutProgress.visibility = View.VISIBLE
+        }
+
         // Prefill shipping address with dummy test data
-        binding.etAddress.setText("Jl. testing dummy app")
+        binding.etAddress.setText("Jl. Testing Dummy App")
         binding.etCity.setText("Jakarta")
         binding.etZip.setText("10620")
 
@@ -103,8 +119,16 @@ class PaymentFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
         binding.toolbar.setNavigationOnClickListener { findNavController().popBackStack() }
 
+        if (experiments.isPostHogFlagEnabled(PostHogFlag.CHECKOUT_PROGRESS_BAR.key)) {
+            binding.checkoutProgress.visibility = View.VISIBLE
+        }
+
         // COD kill switch — hidden by default when flag is off (e.g. region without COD).
         binding.rbCod.isVisible = experiments.isEnabled(FeatureFlag.PAYMENT_METHOD_COD_ENABLED)
+
+        // Shipping estimate from Firebase Remote Config — changes per user segment / A/B test.
+        val maxDays = experiments.getLong(FeatureFlag.MAX_SHIPPING_DAYS)
+        binding.tvShippingDays.text = "🚚 Arrives in up to $maxDays days"
 
         // Override CTA text from Braze Feature Flag — targeted per user segment.
         // Braze flags are cached at session start; subscribe to updates so a flag
@@ -159,9 +183,14 @@ class PaymentFragment : Fragment() {
         Log.d(TAG, "applyBrazeCtaFlag: flag=${flag?.id ?: "null"} enabled=${flag?.enabled} label=$label")
         if (flag?.enabled == true) {
             label?.let { binding.placeOrderBtn.text = it }
+            // Premium gold styling — targets VIP / high-value user segment via Braze.
             binding.placeOrderBtn.backgroundTintList = ColorStateList.valueOf(
-                ContextCompat.getColor(requireContext(), R.color.success)
+                ContextCompat.getColor(requireContext(), R.color.gold_premium)
             )
+            binding.placeOrderBtn.setTextColor(
+                ContextCompat.getColor(requireContext(), R.color.white)
+            )
+            binding.placeOrderBtn.letterSpacing = 0.08f
         }
     }
 
@@ -192,6 +221,7 @@ class OrderConfirmationFragment : Fragment() {
     private val viewModel: CheckoutViewModel by activityViewModels()
 
     @Inject lateinit var analyticsManager: AnalyticsManager
+    @Inject lateinit var remoteConfig: com.marketapp.config.RemoteConfigManager
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?) =
         FragmentOrderConfirmationBinding.inflate(inflater, container, false).also { _binding = it }.root
@@ -199,6 +229,7 @@ class OrderConfirmationFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         binding.tvOrderId.text = args.orderId
+        binding.btnRefund.isVisible = remoteConfig.isEnabled(FeatureFlag.REQUEST_REFUND_ENABLED)
         // Order ID is PII — mask it in every session replay SDK.
         // PostHog: adds "ph-no-capture" to contentDescription.
         // Clarity: calls Clarity.maskView(). Mixpanel: already masked globally via
@@ -206,7 +237,6 @@ class OrderConfirmationFragment : Fragment() {
         analyticsManager.maskView(binding.tvOrderId)
         // GA4: purchase — fires here once the order is confirmed and visible to the user.
         viewModel.onOrderConfirmed()
-
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 viewModel.aiOrderMessage.collect { msg ->
@@ -222,6 +252,13 @@ class OrderConfirmationFragment : Fragment() {
             findNavController().navigate(
                 OrderConfirmationFragmentDirections.actionGlobalHomeFragment()
             )
+        }
+
+        binding.btnRefund.setOnClickListener {
+            viewModel.onRefundRequested()
+            Toast.makeText(requireContext(), "Refund request submitted", Toast.LENGTH_SHORT).show()
+            binding.btnRefund.isEnabled = false
+            binding.btnRefund.text = "Refund Requested"
         }
     }
 

@@ -19,6 +19,7 @@
         android:label="Home"
         tools:layout="@layout/fragment_home">
         <deepLink app:uri="marketapp://home" />
+        <deepLink app:uri="https://marketapp-c101c.web.app/home" />
         <action
             android:id="@+id/action_home_to_product"
             app:destination="@id/productDetailFragment"
@@ -38,6 +39,7 @@
         android:label="Search"
         tools:layout="@layout/fragment_search">
         <deepLink app:uri="marketapp://search" />
+        <deepLink app:uri="https://marketapp-c101c.web.app/search" />
         <action
             android:id="@+id/action_search_to_product"
             app:destination="@id/productDetailFragment"
@@ -61,6 +63,7 @@
         <deepLink
             android:id="@+id/deepLink_product"
             app:uri="marketapp://product/{productId}" />
+        <deepLink app:uri="https://marketapp-c101c.web.app/product/{productId}" />
         <action
             android:id="@+id/action_product_to_cart"
             app:destination="@id/cartFragment" />
@@ -91,6 +94,7 @@
         android:label="Cart"
         tools:layout="@layout/fragment_cart">
         <deepLink app:uri="marketapp://cart" />
+        <deepLink app:uri="https://marketapp-c101c.web.app/cart" />
         <action
             android:id="@+id/action_cart_to_checkout"
             app:destination="@id/checkoutFragment"
@@ -146,12 +150,32 @@
         android:label="Profile"
         tools:layout="@layout/fragment_profile">
         <deepLink app:uri="marketapp://profile" />
+        <deepLink app:uri="https://marketapp-c101c.web.app/profile" />
         <!-- Deep link used by Braze Content Card push campaigns.
              Navigates to Profile and auto-opens the Content Cards bottom sheet. -->
         <deepLink app:uri="marketapp://content-cards" />
+        <deepLink app:uri="https://marketapp-c101c.web.app/content-cards" />
+        <action
+            android:id="@+id/action_profile_to_wishlist"
+            app:destination="@id/wishlistFragment" />
         <action
             android:id="@+id/action_profile_to_debug"
             app:destination="@id/debugMenuFragment" />
+    </fragment>
+
+    <!-- Wishlist -->
+    <fragment
+        android:id="@+id/wishlistFragment"
+        android:name="com.marketapp.ui.wishlist.WishlistFragment"
+        android:label="Wishlist"
+        tools:layout="@layout/fragment_wishlist">
+        <action
+            android:id="@+id/action_wishlist_to_product"
+            app:destination="@id/productDetailFragment"
+            app:enterAnim="@anim/slide_in_right"
+            app:exitAnim="@anim/slide_out_left"
+            app:popEnterAnim="@anim/slide_in_left"
+            app:popExitAnim="@anim/slide_out_right" />
     </fragment>
 
     <!-- Developer Options (debug builds only) -->

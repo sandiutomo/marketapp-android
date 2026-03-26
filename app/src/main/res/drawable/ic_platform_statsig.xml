@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Simplified Statsig logo — ascending bar chart (gates/metrics) -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="16dp"
+    android:height="16dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+
+    <path
+        android:fillColor="#194BFB"
+        android:pathData="M2,21L2,14L7,14L7,21ZM9,21L9,9L14,9L14,21ZM16,21L16,4L21,4L21,21Z" />
+
+</vector>

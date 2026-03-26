@@ -83,6 +83,7 @@ class StatsigTracker @Inject constructor(
 
     override fun track(event: AnalyticsEvent) {
         if (!consentEnabled) return
+        if (event.isBrazeOnly || event.isAmplitudeOnly) return
         val props = event.toProperties()
         // Revenue takes priority over generic value for the Statsig event numeric field
         val value    = (props["revenue"] as? Double) ?: (props["value"] as? Double) ?: 0.0

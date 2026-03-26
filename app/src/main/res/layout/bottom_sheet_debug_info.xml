@@ -53,6 +53,94 @@
             android:layout_height="wrap_content"
             android:orientation="vertical">
 
+            <!-- ═══ SECTION HEADER: USER ═══ -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingHorizontal="@dimen/screen_padding"
+                android:paddingTop="@dimen/spacing_12"
+                android:paddingBottom="@dimen/spacing_12"
+                android:text="USER"
+                android:textSize="11sp"
+                android:fontFamily="sans-serif-medium"
+                android:letterSpacing="0.12"
+                android:textColor="@color/text_primary"
+                android:background="@color/gray_5" />
+
+            <LinearLayout
+                android:id="@+id/container_user"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical" />
+
+            <!-- ═══ SECTION HEADER: DEVICE ═══ -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingHorizontal="@dimen/screen_padding"
+                android:paddingTop="@dimen/spacing_12"
+                android:paddingBottom="@dimen/spacing_12"
+                android:layout_marginTop="@dimen/spacing_16"
+                android:text="DEVICE"
+                android:textSize="11sp"
+                android:fontFamily="sans-serif-medium"
+                android:letterSpacing="0.12"
+                android:textColor="@color/text_primary"
+                android:background="@color/gray_5" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingHorizontal="@dimen/screen_padding"
+                android:paddingTop="@dimen/spacing_16"
+                android:paddingBottom="@dimen/spacing_8"
+                android:text="Device Tokens"
+                android:textAppearance="@style/TextAppearance.MarketApp.Caption"
+                android:textColor="@color/text_tertiary"
+                android:letterSpacing="0.04" />
+
+            <LinearLayout
+                android:id="@+id/container_tokens"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical" />
+
+            <!-- ═══ SECTION HEADER: SESSION REPLAY ═══ -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingHorizontal="@dimen/screen_padding"
+                android:paddingTop="@dimen/spacing_12"
+                android:paddingBottom="@dimen/spacing_12"
+                android:layout_marginTop="@dimen/spacing_16"
+                android:text="SESSION REPLAY"
+                android:textSize="11sp"
+                android:fontFamily="sans-serif-medium"
+                android:letterSpacing="0.12"
+                android:textColor="@color/text_primary"
+                android:background="@color/gray_5" />
+
+            <LinearLayout
+                android:id="@+id/container_session_replay"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical" />
+
+            <!-- ═══ SECTION HEADER: FEATURE FLAGS ═══ -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingHorizontal="@dimen/screen_padding"
+                android:paddingTop="@dimen/spacing_12"
+                android:paddingBottom="@dimen/spacing_12"
+                android:layout_marginTop="@dimen/spacing_16"
+                android:text="FEATURE FLAGS"
+                android:textSize="11sp"
+                android:fontFamily="sans-serif-medium"
+                android:letterSpacing="0.12"
+                android:textColor="@color/text_primary"
+                android:background="@color/gray_5" />
+
             <!-- SDK Gates — Statsig managed -->
             <TextView
                 android:layout_width="match_parent"
@@ -60,10 +148,13 @@
                 android:paddingHorizontal="@dimen/screen_padding"
                 android:paddingTop="@dimen/spacing_12"
                 android:paddingBottom="@dimen/spacing_8"
-                android:text="SDK GATES (STATSIG MANAGED)"
+                android:text="Statsig SDK Gates"
                 android:textAppearance="@style/TextAppearance.MarketApp.Caption"
                 android:textColor="@color/text_tertiary"
-                android:letterSpacing="0.08" />
+                android:letterSpacing="0.04"
+                android:drawableStart="@drawable/ic_platform_statsig"
+                android:drawablePadding="6dp"
+                android:gravity="center_vertical" />
 
             <LinearLayout
                 android:id="@+id/container_sdks"
@@ -85,10 +176,13 @@
                 android:paddingHorizontal="@dimen/screen_padding"
                 android:paddingTop="@dimen/spacing_16"
                 android:paddingBottom="@dimen/spacing_8"
-                android:text="FEATURE ROLLOUTS (STATSIG MANAGED)"
+                android:text="Statsig Feature Rollouts"
                 android:textAppearance="@style/TextAppearance.MarketApp.Caption"
                 android:textColor="@color/text_tertiary"
-                android:letterSpacing="0.08" />
+                android:letterSpacing="0.04"
+                android:drawableStart="@drawable/ic_platform_statsig"
+                android:drawablePadding="6dp"
+                android:gravity="center_vertical" />
 
             <LinearLayout
                 android:id="@+id/container_rollouts"
@@ -110,10 +204,13 @@
                 android:paddingHorizontal="@dimen/screen_padding"
                 android:paddingTop="@dimen/spacing_16"
                 android:paddingBottom="@dimen/spacing_8"
-                android:text="FEATURE FLAGS (FIREBASE REMOTE CONFIG)"
+                android:text="Firebase Remote Config"
                 android:textAppearance="@style/TextAppearance.MarketApp.Caption"
                 android:textColor="@color/text_tertiary"
-                android:letterSpacing="0.08" />
+                android:letterSpacing="0.04"
+                android:drawableStart="@drawable/ic_platform_firebase"
+                android:drawablePadding="6dp"
+                android:gravity="center_vertical" />
 
             <LinearLayout
                 android:id="@+id/container_flags"
@@ -135,10 +232,13 @@
                 android:paddingHorizontal="@dimen/screen_padding"
                 android:paddingTop="@dimen/spacing_16"
                 android:paddingBottom="@dimen/spacing_8"
-                android:text="FEATURE FLAGS (POSTHOG)"
+                android:text="PostHog Feature Flags"
                 android:textAppearance="@style/TextAppearance.MarketApp.Caption"
                 android:textColor="@color/text_tertiary"
-                android:letterSpacing="0.08" />
+                android:letterSpacing="0.04"
+                android:drawableStart="@drawable/ic_platform_posthog"
+                android:drawablePadding="6dp"
+                android:gravity="center_vertical" />
 
             <LinearLayout
                 android:id="@+id/container_posthog"
@@ -160,10 +260,13 @@
                 android:paddingHorizontal="@dimen/screen_padding"
                 android:paddingTop="@dimen/spacing_16"
                 android:paddingBottom="@dimen/spacing_8"
-                android:text="FEATURE FLAGS (BRAZE)"
+                android:text="Braze Feature Flags"
                 android:textAppearance="@style/TextAppearance.MarketApp.Caption"
                 android:textColor="@color/text_tertiary"
-                android:letterSpacing="0.08" />
+                android:letterSpacing="0.04"
+                android:drawableStart="@drawable/ic_platform_braze"
+                android:drawablePadding="6dp"
+                android:gravity="center_vertical" />
 
             <LinearLayout
                 android:id="@+id/container_braze"
@@ -185,10 +288,13 @@
                 android:paddingHorizontal="@dimen/screen_padding"
                 android:paddingTop="@dimen/spacing_16"
                 android:paddingBottom="@dimen/spacing_8"
-                android:text="FEATURE FLAGS (AMPLITUDE EXPERIMENT)"
+                android:text="Amplitude Experiment"
                 android:textAppearance="@style/TextAppearance.MarketApp.Caption"
                 android:textColor="@color/text_tertiary"
-                android:letterSpacing="0.08" />
+                android:letterSpacing="0.04"
+                android:drawableStart="@drawable/ic_platform_amplitude"
+                android:drawablePadding="6dp"
+                android:gravity="center_vertical" />
 
             <LinearLayout
                 android:id="@+id/container_amplitude"
@@ -203,20 +309,168 @@
                 android:layout_marginTop="@dimen/spacing_16"
                 android:background="@color/gray_5" />
 
-            <!-- Device Tokens -->
+            <!-- Feature Flags — Mixpanel -->
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:paddingHorizontal="@dimen/screen_padding"
                 android:paddingTop="@dimen/spacing_16"
                 android:paddingBottom="@dimen/spacing_8"
-                android:text="DEVICE TOKENS"
+                android:text="Mixpanel"
                 android:textAppearance="@style/TextAppearance.MarketApp.Caption"
                 android:textColor="@color/text_tertiary"
-                android:letterSpacing="0.08" />
+                android:letterSpacing="0.04" />
 
             <LinearLayout
-                android:id="@+id/container_tokens"
+                android:id="@+id/container_mixpanel"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical" />
+
+            <!-- ═══ SECTION HEADER: CAMPAIGN STATUS ═══ -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingHorizontal="@dimen/screen_padding"
+                android:paddingTop="@dimen/spacing_12"
+                android:paddingBottom="@dimen/spacing_12"
+                android:layout_marginTop="@dimen/spacing_16"
+                android:text="CAMPAIGN STATUS"
+                android:textSize="11sp"
+                android:fontFamily="sans-serif-medium"
+                android:letterSpacing="0.12"
+                android:textColor="@color/text_primary"
+                android:background="@color/gray_5" />
+
+            <!-- Braze Content Cards -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingHorizontal="@dimen/screen_padding"
+                android:paddingTop="@dimen/spacing_16"
+                android:paddingBottom="@dimen/spacing_8"
+                android:text="Braze Content Cards"
+                android:textAppearance="@style/TextAppearance.MarketApp.Caption"
+                android:textColor="@color/text_tertiary"
+                android:letterSpacing="0.04"
+                android:drawableStart="@drawable/ic_platform_braze"
+                android:drawablePadding="6dp"
+                android:gravity="center_vertical" />
+
+            <LinearLayout
+                android:id="@+id/container_content_cards"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical" />
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="0.5dp"
+                android:layout_marginHorizontal="@dimen/screen_padding"
+                android:layout_marginTop="@dimen/spacing_16"
+                android:background="@color/gray_5" />
+
+            <!-- Braze Canvas Content Cards -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingHorizontal="@dimen/screen_padding"
+                android:paddingTop="@dimen/spacing_16"
+                android:paddingBottom="@dimen/spacing_8"
+                android:text="Braze Canvas Content Cards"
+                android:textAppearance="@style/TextAppearance.MarketApp.Caption"
+                android:textColor="@color/text_tertiary"
+                android:letterSpacing="0.04"
+                android:drawableStart="@drawable/ic_platform_braze"
+                android:drawablePadding="6dp"
+                android:gravity="center_vertical" />
+
+            <LinearLayout
+                android:id="@+id/container_braze_canvas"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical" />
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="0.5dp"
+                android:layout_marginHorizontal="@dimen/screen_padding"
+                android:layout_marginTop="@dimen/spacing_16"
+                android:background="@color/gray_5" />
+
+            <!-- Braze Banner Placements -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingHorizontal="@dimen/screen_padding"
+                android:paddingTop="@dimen/spacing_16"
+                android:paddingBottom="@dimen/spacing_8"
+                android:text="Braze Banner Placements"
+                android:textAppearance="@style/TextAppearance.MarketApp.Caption"
+                android:textColor="@color/text_tertiary"
+                android:letterSpacing="0.04"
+                android:drawableStart="@drawable/ic_platform_braze"
+                android:drawablePadding="6dp"
+                android:gravity="center_vertical" />
+
+            <LinearLayout
+                android:id="@+id/container_banners"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical" />
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="0.5dp"
+                android:layout_marginHorizontal="@dimen/screen_padding"
+                android:layout_marginTop="@dimen/spacing_16"
+                android:background="@color/gray_5" />
+
+            <!-- Braze Push Subscription -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingHorizontal="@dimen/screen_padding"
+                android:paddingTop="@dimen/spacing_16"
+                android:paddingBottom="@dimen/spacing_8"
+                android:text="Braze Push Subscription"
+                android:textAppearance="@style/TextAppearance.MarketApp.Caption"
+                android:textColor="@color/text_tertiary"
+                android:letterSpacing="0.04"
+                android:drawableStart="@drawable/ic_platform_braze"
+                android:drawablePadding="6dp"
+                android:gravity="center_vertical" />
+
+            <LinearLayout
+                android:id="@+id/container_braze_push"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical" />
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="0.5dp"
+                android:layout_marginHorizontal="@dimen/screen_padding"
+                android:layout_marginTop="@dimen/spacing_16"
+                android:background="@color/gray_5" />
+
+            <!-- OneSignal -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingHorizontal="@dimen/screen_padding"
+                android:paddingTop="@dimen/spacing_16"
+                android:paddingBottom="@dimen/spacing_8"
+                android:text="OneSignal"
+                android:textAppearance="@style/TextAppearance.MarketApp.Caption"
+                android:textColor="@color/text_tertiary"
+                android:letterSpacing="0.04"
+                android:drawableStart="@drawable/ic_platform_onesignal"
+                android:drawablePadding="6dp"
+                android:gravity="center_vertical" />
+
+            <LinearLayout
+                android:id="@+id/container_onesignal"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical" />

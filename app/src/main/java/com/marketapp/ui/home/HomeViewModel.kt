@@ -13,6 +13,7 @@ import com.marketapp.data.model.Product
 import com.marketapp.data.model.PromotionItem
 import com.marketapp.data.model.UiState
 import com.marketapp.data.repository.AuthRepository
+import com.marketapp.data.repository.CartManager
 import com.marketapp.data.repository.OrderRepository
 import com.marketapp.data.repository.ProductRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -29,11 +30,26 @@ class HomeViewModel @Inject constructor(
     private val authRepository: AuthRepository,
     private val orderRepository: OrderRepository,
     private val aiRepository: AiRepository,
-    private val remoteConfig: RemoteConfigManager
+    private val remoteConfig: RemoteConfigManager,
+    private val cartManager: CartManager
 ) : ViewModel() {
 
     private val _products = MutableStateFlow<UiState<List<Product>>>(UiState.Loading)
     val products: StateFlow<UiState<List<Product>>> = _products
+
+    val wishlist: StateFlow<Set<Int>> = cartManager.wishlist
+
+    fun toggleWishlist(product: Product) {
+        val added = cartManager.toggleWishlist(product.id)
+        analytics.track(
+            AnalyticsEvent.ProductWishlisted(
+                productId   = product.id.toString(),
+                productName = product.title,
+                price       = product.priceIdr,
+                added       = added
+            )
+        )
+    }
 
     private val _categories = MutableStateFlow<List<String>>(emptyList())
     val categories: StateFlow<List<String>> = _categories
@@ -51,42 +67,48 @@ class HomeViewModel @Inject constructor(
     }
 
     fun loadHome() {
-        // Promotions are static — show them immediately without waiting for the network.
-        _promotions.value = homePromotions
+        // Promotions killswitch — hide entire carousel when flag is off.
+        _promotions.value = if (remoteConfig.isEnabled(FeatureFlag.SHOW_PROMOTIONS_BANNER)) homePromotions else emptyList()
         viewModelScope.launch {
             _products.value = UiState.Loading
             perf.trace("home_screen_load") { trace ->
                 repository.getProducts()
                     .onSuccess { list ->
-                        trace.putAttribute("item_count", list.size.toString())
-                        _products.value = UiState.Success(list)
-                        applyAiSort(list)
-                        analytics.track(
-                            AnalyticsEvent.ProductListViewed(
-                                listId   = "home_feed",
-                                listName = "Home Feed",
-                                items    = list.mapIndexed { i, p ->
-                                    EcommerceItem(
-                                        itemId   = p.id.toString(),
-                                        itemName = p.title,
-                                        price    = p.priceIdr,
-                                        quantity = 1,
-                                        category = p.category,
-                                        index    = i
-                                    )
-                                }
-                            )
-                        )
-                        homePromotions.forEach { promo ->
+                        val shuffled = list.shuffled()
+                        trace.putAttribute("item_count", shuffled.size.toString())
+                        _products.value = UiState.Success(shuffled)
+                        _categories.value = list.map { it.category }.distinct().sorted()
+                        applyAiSort(shuffled)
+                        if (remoteConfig.isEnabled(FeatureFlag.VIEW_ITEM_LIST_ENABLED)) {
                             analytics.track(
-                                AnalyticsEvent.PromotionViewed(
-                                    promotionId   = promo.id,
-                                    promotionName = promo.name,
-                                    creativeName  = promo.creativeName,
-                                    creativeSlot  = promo.creativeSlot,
-                                    locationId    = promo.locationId
+                                AnalyticsEvent.ProductListViewed(
+                                    listId   = "home_feed",
+                                    listName = "Home Feed",
+                                    items    = shuffled.mapIndexed { i, p ->
+                                        EcommerceItem(
+                                            itemId   = p.id.toString(),
+                                            itemName = p.title,
+                                            price    = p.priceIdr,
+                                            quantity = 1,
+                                            category = p.category,
+                                            index    = i
+                                        )
+                                    }
                                 )
                             )
+                        }
+                        if (remoteConfig.isEnabled(FeatureFlag.SHOW_PROMOTIONS_BANNER)) {
+                            homePromotions.forEach { promo ->
+                                analytics.track(
+                                    AnalyticsEvent.PromotionViewed(
+                                        promotionId   = promo.id,
+                                        promotionName = promo.name,
+                                        creativeName  = promo.creativeName,
+                                        creativeSlot  = promo.creativeSlot,
+                                        locationId    = promo.locationId
+                                    )
+                                )
+                            }
                         }
                     }
                     .onFailure { e ->
@@ -95,8 +117,6 @@ class HomeViewModel @Inject constructor(
                         analytics.trackError("Home", "LOAD_FAILED", msg)
                     }
             }
-            repository.getCategories()
-                .onSuccess { _categories.value = it }
         }
     }
 
@@ -114,6 +134,23 @@ class HomeViewModel @Inject constructor(
         } catch (_: Exception) {
             // AI sort is best-effort — leave products as returned by the network
         }
+    }
+
+    fun onProductSelected(product: Product, position: Int) {
+        analytics.track(
+            AnalyticsEvent.ProductSelected(
+                listId   = "home_feed",
+                listName = "Home Feed",
+                item     = EcommerceItem(
+                    itemId   = product.id.toString(),
+                    itemName = product.title,
+                    price    = product.priceIdr,
+                    quantity = 1,
+                    category = product.category,
+                    index    = position
+                )
+            )
+        )
     }
 
     fun onCategorySelected(category: String) {

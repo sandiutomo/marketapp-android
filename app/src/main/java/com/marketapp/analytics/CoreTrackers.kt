@@ -65,6 +65,7 @@ class FacebookTracker @Inject constructor(
     override fun track(event: AnalyticsEvent) {
         if (!FacebookSdk.isInitialized()) return
         if (!Statsig.checkGate("sdk_facebook_enabled")) return
+        if (event.isBrazeOnly || event.isAmplitudeOnly) return
 
         when (event) {
             is AnalyticsEvent.ProductViewed -> {
@@ -260,6 +261,7 @@ class FirebaseTracker @Inject constructor() : AnalyticsTracker {
 
     override fun track(event: AnalyticsEvent) {
         if (!Statsig.checkGate("sdk_firebase_enabled")) return
+        if (event.isBrazeOnly || event.isAmplitudeOnly) return
         when (event) {
             is AnalyticsEvent.ScreenView            -> fa.logEvent(FirebaseAnalytics.Event.SCREEN_VIEW,       screenViewBundle(event))
             // Product list ────────────────────────────────────────────────────────────────────────
@@ -621,6 +623,7 @@ class PostHogTracker @Inject constructor(
             captureScreenViews = false
             captureDeepLinks = true
             debug              = BuildConfig.DEBUG
+            errorTrackingConfig.autoCapture = true
             // Session replay: 20% debug, 40% production. Decided once at init.
             val sessionRecorded = Math.random() < 0.4
             SessionReplayLogger.record("PostHog", sessionRecorded, debugPct = 40, prodPct = 40)
@@ -642,6 +645,7 @@ class PostHogTracker @Inject constructor(
 
     override fun track(event: AnalyticsEvent) {
         if (!Statsig.checkGate("sdk_posthog_enabled")) return
+        if (event.isBrazeOnly || event.isAmplitudeOnly) return
         when (event) {
             is AnalyticsEvent.ScreenView -> {
                 if (BuildConfig.DEBUG) Log.d("Analytics", "[PostHog] screen: ${event.screenName} (${event.screenClass})")
@@ -744,6 +748,7 @@ class MixpanelTracker @Inject constructor(
 
     override fun track(event: AnalyticsEvent) {
         if (!Statsig.checkGate("sdk_mixpanel_enabled")) return
+        if (event.isBrazeOnly || event.isAmplitudeOnly) return
         val props = event.toProperties().toMixpanelProps()
 
         when (event) {
@@ -930,6 +935,7 @@ class AppsFlyerTracker @Inject constructor(
 
     override fun track(event: AnalyticsEvent) {
         if (!Statsig.checkGate("sdk_appsflyer_enabled")) return
+        if (event.isBrazeOnly || event.isAmplitudeOnly) return
         val eventName: String
         val params: Map<String, Any>
 
@@ -1161,6 +1167,8 @@ class MicrosoftClarityTracker @Inject constructor(
     private var consentEnabled = true
 
     override suspend fun initialize() {
+        // Clarity records every session (no SDK-level sampling).
+        SessionReplayLogger.record("MicrosoftClarity", active = true, debugPct = 100, prodPct = 100)
         val config = ClarityConfig(
             projectId = BuildConfig.CLARITY_PROJECT_ID,
             logLevel  = if (BuildConfig.DEBUG) LogLevel.Verbose else LogLevel.None
@@ -1175,6 +1183,7 @@ class MicrosoftClarityTracker @Inject constructor(
     override fun track(event: AnalyticsEvent) {
         if (!consentEnabled) return
         if (!Statsig.checkGate("sdk_clarity_enabled")) return
+        if (event.isBrazeOnly || event.isAmplitudeOnly) return
         if (event is AnalyticsEvent.ScreenView) {
             Clarity.setCurrentScreenName(event.screenName)
         }
@@ -1369,6 +1378,7 @@ class BrazeTracker @Inject constructor(
     override fun track(event: AnalyticsEvent) {
         if (!consentEnabled) return
         if (!Statsig.checkGate("sdk_braze_enabled")) return
+        if (event.isAmplitudeOnly) return
         val braze = com.braze.Braze.getInstance(context)
         when (event) {
             // ecommerce.product_viewed ────────────────────────────────────────────────────────────
@@ -1398,6 +1408,8 @@ class BrazeTracker @Inject constructor(
                         })
                     }
                 )
+                braze.currentUser?.setCustomUserAttribute("cart_item_count", event.cartItemCount)
+                braze.currentUser?.setCustomUserAttribute("last_cart_activity_ts", System.currentTimeMillis() / 1000)
             }
             // ecommerce.cart_updated (remove) ─────────────────────────────────────────────────────
             is AnalyticsEvent.RemoveFromCart -> {
@@ -1418,6 +1430,8 @@ class BrazeTracker @Inject constructor(
                         })
                     }
                 )
+                braze.currentUser?.setCustomUserAttribute("cart_item_count", event.cartItemCount)
+                braze.currentUser?.setCustomUserAttribute("last_cart_activity_ts", System.currentTimeMillis() / 1000)
             }
             // ecommerce.checkout_started ──────────────────────────────────────────────────────────
             is AnalyticsEvent.CheckoutStarted -> {
@@ -1461,6 +1475,9 @@ class BrazeTracker @Inject constructor(
                         }
                     )
                 }
+                // Reset abandoned-cart attributes — user completed purchase.
+                braze.currentUser?.setCustomUserAttribute("cart_item_count", 0)
+                braze.currentUser?.setCustomUserAttribute("last_cart_activity_ts", 0L)
                 // Flush immediately on purchase — revenue events must never wait in the queue.
                 braze.requestImmediateDataFlush()
             }
@@ -1567,6 +1584,10 @@ class BrazeTracker @Inject constructor(
      *     brazeTracker.onLocationPermissionGranted()
      * }
      */
+    override fun requestLocationInitialization() {
+        onLocationPermissionGranted()
+    }
+
     fun onLocationPermissionGranted() {
         com.braze.Braze.getInstance(context).requestLocationInitialization()
     }
@@ -1680,12 +1701,26 @@ class OneSignalTracker @Inject constructor(
 
     override fun track(event: AnalyticsEvent) {
         if (!Statsig.checkGate("sdk_onesignal_enabled")) return
+        if (event.isBrazeOnly || event.isAmplitudeOnly) return
         // OneSignal is push-focused — log outcomes for conversion attribution.
         when (event) {
-            is AnalyticsEvent.OrderPlaced        ->
+            is AnalyticsEvent.OrderPlaced        -> {
                 com.onesignal.OneSignal.Session.addOutcomeWithValue("purchase", event.totalValue.toFloat())
-            is AnalyticsEvent.AddToCart          ->
+                com.onesignal.OneSignal.User.addTags(mapOf("cart_item_count" to "0", "last_cart_ts" to "0"))
+            }
+            is AnalyticsEvent.AddToCart          -> {
                 com.onesignal.OneSignal.Session.addOutcome("add_to_cart")
+                com.onesignal.OneSignal.User.addTags(mapOf(
+                    "cart_item_count" to event.cartItemCount.toString(),
+                    "last_cart_ts"    to (System.currentTimeMillis() / 1000).toString()
+                ))
+            }
+            is AnalyticsEvent.RemoveFromCart     -> {
+                com.onesignal.OneSignal.User.addTags(mapOf(
+                    "cart_item_count" to event.cartItemCount.toString(),
+                    "last_cart_ts"    to (System.currentTimeMillis() / 1000).toString()
+                ))
+            }
             is AnalyticsEvent.CheckoutStarted    ->
                 com.onesignal.OneSignal.Session.addOutcome("begin_checkout")
             is AnalyticsEvent.UserRegistered     ->

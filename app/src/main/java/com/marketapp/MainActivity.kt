@@ -1,15 +1,18 @@
 package com.marketapp
 
+import android.Manifest
 import android.annotation.SuppressLint
+import android.content.pm.PackageManager
+import android.telephony.TelephonyManager
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
-import android.telephony.TelephonyManager
 import android.util.Log
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.net.toUri
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
@@ -23,7 +26,9 @@ import com.facebook.FacebookSdk
 import com.facebook.appevents.AppEventsLogger
 import com.google.android.gms.ads.identifier.AdvertisingIdClient
 import com.google.firebase.installations.FirebaseInstallations
+import com.google.firebase.ktx.Firebase
 import com.google.firebase.messaging.FirebaseMessaging
+import com.google.firebase.analytics.ktx.analytics
 import com.amplitude.android.engagement.ui.theme.ThemeMode
 import com.marketapp.analytics.AnalyticsEvent
 import com.marketapp.analytics.AnalyticsManager
@@ -91,12 +96,22 @@ class MainActivity : AppCompatActivity() {
 
         if (!appPreferences.consentShown) {
             ConsentBottomSheet().show(supportFragmentManager, ConsentBottomSheet.TAG)
+        } else if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
+                == PackageManager.PERMISSION_GRANTED) {
+            // Returning user who already granted location — re-initialize geofences.
+            // requestLocationInitialization() is a no-op after the first call per session.
+            analyticsManager.requestLocationInitialization()
         }
 
         // On cold start, NavHostFragment automatically handles the deep link and builds
         // the correct back stack. We only extract UTM attribution — no manual navigation.
         intent?.let { trackDeepLinkAttribution(it) }
         handlePushIntent(intent, "cold")
+        // Amplitude Guides & Surveys — cold-start preview link (ADB or push that opens a fresh process).
+        // engagement may not be ready yet; handleLinkIntentWhenReady queues it until initialize() completes.
+        if (intent?.data?.scheme == "marketapp-amp-preview") {
+            AmplitudeTracker.handleLinkIntentWhenReady(intent)
+        }
         setupAppsFlyerDeepLink()
 
         if (BuildConfig.DEBUG) {
@@ -142,7 +157,7 @@ class MainActivity : AppCompatActivity() {
         val launchState = if (isActivityResumed) "hot" else "warm"
         handleNativeDeepLink(intent, launchState)
         handlePushIntent(intent, launchState)
-        AmplitudeTracker.engagement?.handleLinkIntent(intent)
+        AmplitudeTracker.handleLinkIntentWhenReady(intent)
     }
 
     /**
@@ -191,6 +206,9 @@ class MainActivity : AppCompatActivity() {
      */
     private fun handleNativeDeepLink(intent: Intent, launchState: String) {
         val uri = intent.data ?: return
+        // Amplitude Guides & Surveys preview links — handled exclusively by handleLinkIntent().
+        // Letting routeDeepLink() process them navigates to Home (no matching destination).
+        if (uri.scheme == "marketapp-amp-preview") return
         val host = uri.host ?: ""
         if (host.endsWith("onelink.me") || host.endsWith("appsflyer.com")) return
 
@@ -326,6 +344,9 @@ class MainActivity : AppCompatActivity() {
 
     @SuppressLint("HardwareIds", "MissingPermission")
     private fun logFirebaseTokens() {
+        if (deviceIdsLogged) return
+        deviceIdsLogged = true
+
         FirebaseInstallations.getInstance().id.addOnSuccessListener { fid ->
             Log.d("Analytics", "[FCM] Firebase Installation ID: $fid")
         }
@@ -339,25 +360,40 @@ class MainActivity : AppCompatActivity() {
         val androidId = Settings.Secure.getString(contentResolver, Settings.Secure.ANDROID_ID)
         Log.d("Analytics", "[DeviceID] Android ID:    $androidId")
 
-        val imei = if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+        val imeiIsFallback = Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
+        val imei = if (!imeiIsFallback) {
             try {
                 @Suppress("DEPRECATION")
-                (getSystemService(TELEPHONY_SERVICE) as TelephonyManager).deviceId ?: "null"
-            } catch (e: Exception) { "unavailable (${e.message})" }
+                (getSystemService(TELEPHONY_SERVICE) as TelephonyManager).deviceId ?: androidId
+            } catch (e: Exception) { androidId }
         } else {
-            "unavailable (API ${Build.VERSION.SDK_INT} ≥ 29)"
+            androidId
         }
-        Log.d("Analytics", "[DeviceID] IMEI:          $imei")
+        val imeiNote = if (imeiIsFallback) " [fallback: Android ID, IMEI restricted API 29+]" else ""
+        Log.d("Analytics", "[DeviceID] IMEI:          $imei$imeiNote")
 
-        // OAID requires the MSA SDK — not integrated in this project
-        Log.d("Analytics", "[DeviceID] OAID:          requires MSA SDK")
-
-        // Google Advertising ID and Amazon Fire AID must be fetched off the main thread
+        // Firebase Installation ID and Analytics App Instance ID — fetched async
+        FirebaseInstallations.getInstance().id.addOnSuccessListener { fid ->
+            Log.d("Analytics", "[DeviceID] Firebase FID:  $fid")
+        }
+        // Google Advertising ID, OAID, Firebase App Instance ID, and Amazon Fire AID — fetched off the main thread
         lifecycleScope.launch(Dispatchers.IO) {
+            runCatching {
+                val iid = com.google.android.gms.tasks.Tasks.await(
+                    Firebase.analytics.appInstanceId, 3, java.util.concurrent.TimeUnit.SECONDS
+                )
+                Log.d("Analytics", "[DeviceID] Firebase App Instance ID: $iid")
+            }
+
             val gaid = try {
                 AdvertisingIdClient.getAdvertisingIdInfo(applicationContext).id ?: "null"
             } catch (e: Exception) { "unavailable (${e.message})" }
             Log.d("Analytics", "[DeviceID] Google AID:    $gaid")
+
+            val oaidIsFallback = gaid.startsWith("unavailable")
+            val oaid = if (!oaidIsFallback) gaid else "N/A"
+            val oaidNote = if (!oaidIsFallback) " [fallback: Google AID, MSA SDK not integrated]" else ""
+            Log.d("Analytics", "[DeviceID] OAID:          $oaid$oaidNote")
 
             val fireAid = try {
                 Settings.Secure.getString(contentResolver, "advertising_id")
@@ -389,7 +425,8 @@ class MainActivity : AppCompatActivity() {
             val hideNavOn = setOf(
                 R.id.productDetailFragment,
                 R.id.checkoutFragment,
-                R.id.orderConfirmationFragment
+                R.id.orderConfirmationFragment,
+                R.id.wishlistFragment
             )
             binding.bottomNav.visibility =
                 if (destination.id in hideNavOn) android.view.View.GONE
@@ -410,36 +447,61 @@ class MainActivity : AppCompatActivity() {
                 else                           -> destination.label?.toString() ?: "Unknown"
             }
             analyticsManager.track(AnalyticsEvent.ScreenView(screenName, screenClass))
-            AmplitudeTracker.engagement?.screen(screenClass)
+            val eng = AmplitudeTracker.engagement
+            if (BuildConfig.DEBUG) Log.d("AmplitudeSurvey", "screen=$screenClass engagement=${if (eng != null) "ready" else "NULL"}")
+            eng?.screen(screenClass)
         }
     }
 
     override fun onSupportNavigateUp() =
         navController.navigateUp() || super.onSupportNavigateUp()
 
+    private fun logFlag(tag: String, key: String, value: Any?) {
+        val label = when (value) {
+            true, "true", "ACTIVE", "on" -> "ACTIVE"
+            false, "false", "off"        -> "OFF"
+            null, "unset"                -> "unset"
+            else                         -> value.toString()
+        }
+        Log.d(tag, "│  ${key.padEnd(42)} $label")
+    }
+
     private fun logAllFlags() {
         val tag = "FlagStatus"
+
         Log.d(tag, "┌─── Statsig ─────────────────────────────────────────────")
         FeatureGate.entries.forEach { gate ->
-            Log.d(tag, "│  ${gate.key.padEnd(42)} ${if (Statsig.checkGate(gate.key)) "ACTIVE" else "off"}")
+            val value = if (Statsig.checkGate(gate.key)) "ACTIVE" else "OFF"
+            logFlag(tag, gate.key, value)
         }
+
         Log.d(tag, "├─── Remote Config ───────────────────────────────────────")
         FeatureFlag.entries.forEach { flag ->
-            Log.d(tag, "│  ${flag.key.padEnd(42)} ${remoteConfig.rawValue(flag)}")
+            logFlag(tag, flag.key, remoteConfig.rawValue(flag))
         }
+
         Log.d(tag, "├─── PostHog ─────────────────────────────────────────────")
         PostHogFlag.entries.forEach { flag ->
-            Log.d(tag, "│  ${flag.key.padEnd(42)} ${PostHog.getFeatureFlag(flag.key)?.toString() ?: "unset"}")
+            logFlag(tag, flag.key, PostHog.getFeatureFlag(flag.key))
         }
+
         Log.d(tag, "├─── Braze ───────────────────────────────────────────────")
         val braze = com.braze.Braze.getInstance(this)
         BrazeFlag.entries.forEach { flag ->
-            Log.d(tag, "│  ${flag.key.padEnd(42)} ${braze.getFeatureFlag(flag.key)?.enabled?.toString() ?: "unset"}")
+            logFlag(tag, flag.key, braze.getFeatureFlag(flag.key)?.enabled)
         }
+
         Log.d(tag, "├─── Amplitude Experiment ────────────────────────────────")
         AmplitudeExperimentFlag.entries.forEach { flag ->
-            Log.d(tag, "│  ${flag.key.padEnd(42)} ${experiments.getAmplitudeVariant(flag.key) ?: "unset"}")
+            logFlag(tag, flag.key, experiments.getAmplitudeVariant(flag.key))
         }
+
         Log.d(tag, "└─────────────────────────────────────────────────────────")
+    }
+
+    companion object {
+        // Process-scoped guard — prevents logFirebaseTokens() from re-running if the
+        // Activity is recreated mid-session (e.g. theme/config change on first launch).
+        private var deviceIdsLogged = false
     }
 }

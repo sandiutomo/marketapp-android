@@ -8,6 +8,7 @@ import com.marketapp.analytics.AnalyticsManager
 import com.marketapp.analytics.EcommerceItem
 import com.marketapp.data.model.Product
 import com.marketapp.data.model.UiState
+import com.marketapp.data.repository.CartManager
 import com.marketapp.data.repository.ProductRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -19,6 +20,7 @@ import javax.inject.Inject
 class CategoryViewModel @Inject constructor(
     private val repository: ProductRepository,
     private val analytics: AnalyticsManager,
+    private val cartManager: CartManager,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -26,6 +28,20 @@ class CategoryViewModel @Inject constructor(
 
     private val _products = MutableStateFlow<UiState<List<Product>>>(UiState.Loading)
     val products: StateFlow<UiState<List<Product>>> = _products
+
+    val wishlist: StateFlow<Set<Int>> = cartManager.wishlist
+
+    fun toggleWishlist(product: Product) {
+        val added = cartManager.toggleWishlist(product.id)
+        analytics.track(
+            AnalyticsEvent.ProductWishlisted(
+                productId   = product.id.toString(),
+                productName = product.title,
+                price       = product.priceIdr,
+                added       = added
+            )
+        )
+    }
 
     init { loadCategory() }
 

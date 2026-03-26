@@ -1,5 +1,6 @@
 package com.marketapp.ui.home
 
+import android.content.res.ColorStateList
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.core.content.ContextCompat
@@ -27,7 +28,9 @@ class PromotionAdapter(
 
         fun bind(promo: PromotionItem, position: Int) {
             val color = ContextCompat.getColor(binding.root.context, colorRes[position % colorRes.size])
-            binding.root.setCardBackgroundColor(color)
+            // Apply accent color to the right panel and label badge; card stays dark.
+            binding.accentPanel.setBackgroundColor(color)
+            binding.tvPromoLabel.backgroundTintList = ColorStateList.valueOf(color)
             binding.tvPromoLabel.text = promo.name
             binding.tvPromoName.text  = promo.creativeName
             binding.root.setOnClickListener { onClick(promo) }

@@ -13,6 +13,7 @@ import com.amplitude.android.AutocaptureOption
 import com.amplitude.android.Configuration
 import com.amplitude.android.engagement.AmplitudeEngagement
 import com.amplitude.android.engagement.AmplitudeInitOptions
+import com.amplitude.android.engagement.AmplitudeLogLevel
 import com.amplitude.android.DeadClickOptions
 import com.amplitude.android.InteractionsOptions
 import com.amplitude.android.RageClickOptions
@@ -78,6 +79,7 @@ class AmplitudeTracker @Inject constructor(
                         AutocaptureOption.SESSIONS,
                         AutocaptureOption.APP_LIFECYCLES,
                         AutocaptureOption.DEEP_LINKS,
+                        AutocaptureOption.ELEMENT_INTERACTIONS,
                         AutocaptureOption.FRUSTRATION_INTERACTIONS
                     ),
                     // Frustration interaction configuration:
@@ -99,10 +101,15 @@ class AmplitudeTracker @Inject constructor(
             val eng = AmplitudeEngagement(
                 context = context,
                 apiKey  = BuildConfig.AMPLITUDE_API_KEY,
-                options = AmplitudeInitOptions()
+                options = AmplitudeInitOptions(
+                    logLevel = if (BuildConfig.DEBUG) AmplitudeLogLevel.DEBUG else AmplitudeLogLevel.WARN
+                )
             )
             amplitude.add(eng.getPlugin())
             engagement = eng
+            // Drain any preview intent that arrived before engagement was ready (cold start).
+            pendingLinkIntent?.let { dispatch(eng, it) }
+            pendingLinkIntent = null
         }
         if (sessionRecorded) {
             (context as Application).registerActivityLifecycleCallbacks(softwareLayerFix)
@@ -165,6 +172,7 @@ class AmplitudeTracker @Inject constructor(
 
     override fun track(event: AnalyticsEvent) {
         if (!Statsig.checkGate("sdk_amplitude_enabled")) return
+        if (event.isBrazeOnly) return
         // Attach the SessionReplayPlugin the first time we have a valid session.
         // By the time the first event is tracked, the Activity is on screen and
         // Amplitude has established a session (sessionId is a positive timestamp).
@@ -285,6 +293,36 @@ class AmplitudeTracker @Inject constructor(
         /** Exposed so MainActivity can call screen() and handleLinkIntent(). */
         @Volatile var engagement: AmplitudeEngagement? = null
             private set
+
+        // Stores a preview intent received before engagement is ready (cold-start race).
+        @Volatile private var pendingLinkIntent: android.content.Intent? = null
+
+        /**
+         * Passes [intent] to [AmplitudeEngagement.handleLinkIntent] immediately if
+         * [engagement] is ready, or queues it to be delivered once [initialize] completes.
+         * Handles both warm start (onNewIntent) and cold start (onCreate) safely.
+         */
+        fun handleLinkIntentWhenReady(intent: android.content.Intent) {
+            val eng = engagement
+            if (eng != null) {
+                Log.d("AmplitudeSurvey", "handleLinkIntent: immediate scheme=${intent.data?.scheme}")
+                dispatch(eng, intent)
+            } else {
+                Log.d("AmplitudeSurvey", "handleLinkIntent: queued (engagement not ready yet)")
+                pendingLinkIntent = intent
+            }
+        }
+
+        private fun dispatch(eng: com.amplitude.android.engagement.AmplitudeEngagement, intent: android.content.Intent) {
+            // Preview links from the Amplitude dashboard must use handlePreviewLinkIntent.
+            // handleLinkIntent routes to handleShareLinkIntent (collaboration/share flow) and
+            // does NOT trigger the survey preview overlay.
+            if (intent.data?.scheme?.startsWith("amp-") == true) {
+                eng.handlePreviewLinkIntent(intent)
+            } else {
+                eng.handleLinkIntent(intent)
+            }
+        }
     }
 }
 
@@ -309,7 +347,7 @@ class AmplitudeTracker @Inject constructor(
  */
 internal object SessionReplayLogger {
 
-    private const val TAG = "SessionReplay"
+    private const val TAG = "Analytics"
 
     private data class Entry(
         val platform: String,
@@ -321,6 +359,14 @@ internal object SessionReplayLogger {
     private val lock    = Any()
     private val entries = mutableListOf<Entry>()
 
+    // Persistent map of every platform's replay decision for the current session.
+    // Unlike `entries`, this is never cleared — DebugInfoBottomSheet reads it at any time.
+    // Key = platform name, Value = (active, samplePct)
+    private val decisions = linkedMapOf<String, Pair<Boolean, Int>>()
+
+    /** Returns a snapshot of all session-replay decisions recorded this session. */
+    fun getDecisions(): Map<String, Pair<Boolean, Int>> = synchronized(lock) { decisions.toMap() }
+
     /**
      * Record and immediately log a single platform's replay decision.
      *
@@ -331,7 +377,11 @@ internal object SessionReplayLogger {
      */
     fun record(platform: String, active: Boolean, debugPct: Int, prodPct: Int) {
         val entry = Entry(platform, active, debugPct, prodPct)
-        synchronized(lock) { entries.add(entry) }
+        val samplePct = if (BuildConfig.DEBUG) debugPct else prodPct
+        synchronized(lock) {
+            entries.add(entry)
+            decisions[platform] = Pair(active, samplePct)
+        }
 
         val icon   = if (active) "●" else "○"
         val status = if (active) "ACTIVE  " else "INACTIVE"

@@ -5,14 +5,13 @@ import kotlinx.parcelize.Parcelize
 import java.text.NumberFormat
 import java.util.Locale
 
-// 1 USD ≈ 15 000 IDR — adjust when needed
-private const val IDR_RATE = 15_000.0
+// 1 USD ≈ 17 000 IDR — adjust when needed
+private const val IDR_RATE = 17_000.0
 private val idrFormat = NumberFormat.getIntegerInstance(Locale("in", "ID"))
 
 private fun Double.toIdr(): String = "Rp ${idrFormat.format((this * IDR_RATE).toLong())}"
 
-// ── API Response Models ───────────────────────────────────────────────────────
-
+// API Response Models ───────────────────────────────────────────────────────
 @Parcelize
 data class Product(
     val id: Int,
@@ -34,7 +33,7 @@ data class Rating(
     val count: Int = 0
 ) : Parcelable
 
-// ── Cart ─────────────────────────────────────────────────────────────────────
+// Cart ─────────────────────────────────────────────────────────────────────
 
 data class CartItem(
     val product: Product,
@@ -54,7 +53,7 @@ data class Cart(
     val isEmpty: Boolean get() = items.isEmpty()
 }
 
-// ── Order ─────────────────────────────────────────────────────────────────────
+// Order ─────────────────────────────────────────────────────────────────────
 
 data class Order(
     val id: String,
@@ -67,7 +66,7 @@ data class Order(
 
 enum class OrderStatus { PENDING, CONFIRMED, SHIPPED, DELIVERED, CANCELLED }
 
-// ── Promotion ─────────────────────────────────────────────────────────────────
+// Promotion ─────────────────────────────────────────────────────────────────
 
 data class PromotionItem(
     val id: String,
@@ -77,7 +76,7 @@ data class PromotionItem(
     val locationId: String = "home_feed"
 )
 
-// ── UI State wrapper ──────────────────────────────────────────────────────────
+// UI State wrapper ──────────────────────────────────────────────────────────
 
 sealed class UiState<out T> {
     object Loading : UiState<Nothing>()

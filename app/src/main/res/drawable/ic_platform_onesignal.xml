@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Simplified OneSignal logo — red circle with a bell cutout -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="16dp"
+    android:height="16dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+
+    <!-- Red circle background -->
+    <path
+        android:fillColor="#E54B4B"
+        android:pathData="M12,2A10,10,0,1,1,12,22A10,10,0,1,1,12,2Z" />
+
+    <!-- Bell body -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M12,5.5Q12,5.5,12,5.5Q10,5.5,8.5,7Q7.5,8.2,7.5,10L7.5,14.5L6.5,15.5L17.5,15.5L16.5,14.5L16.5,10Q16.5,8.2,15.5,7Q14,5.5,12,5.5Z" />
+
+    <!-- Bell clapper -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M10.5,15.5Q10.5,16.9,12,16.9Q13.5,16.9,13.5,15.5Z" />
+
+    <!-- Bell top knob -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M11.2,5.5Q11.2,4.8,12,4.8Q12.8,4.8,12.8,5.5Z" />
+
+</vector>

@@ -3,24 +3,14 @@
 
 sdk.dir=/Users/YOUR_USERNAME/Library/Android/sdk
 
-## ── MARTECH KEYS ────────────────────────────────────────────────────────────
-## Firebase: keys come from google-services.json (no entry needed here)
-
-## PHASE 2 — Mixpanel
-# MIXPANEL_TOKEN=your_token_here
-
-## PHASE 3 — Braze
-# BRAZE_API_KEY=your_key_here
-# BRAZE_CUSTOM_ENDPOINT=sdk.iad-01.braze.com
-
-## PHASE 4 — AppsFlyer
-# APPSFLYER_DEV_KEY=your_key_here
-
-## PHASE 5 — PostHog
-# POSTHOG_API_KEY=phc_your_key_here
-
-## PHASE 6 — Amplitude
-# AMPLITUDE_API_KEY=your_key_here
-
-## PHASE 7 — Segment
-# SEGMENT_WRITE_KEY=your_key_here
+# FACEBOOK_CLIENT_TOKEN='YOUR_CLIENT_TOKEN'
+# POSTHOG_API_KEY='YOUR_API_KEY'
+# MIXPANEL_TOKEN='YOUR_TOKEN'
+# SEGMENT_WRITE_KEY='YOUR_WRITE_KEY'
+# APPSFLYER_DEV_KEY='YOUR_DEV_KEY'
+# BRAZE_API_KEY='YOUR_API_KEY'
+# ONESIGNAL_APP_ID='YOUR_APP_ID'
+# AMPLITUDE_API_KEY='YOUR_API_KEY'
+# AMPLITUDE_EXPERIMENT_DEPLOYMENT_KEY='YOUR_DEPLOYMENT_KEY'
+# CLARITY_PROJECT_ID='YOUR_PROJECT_ID'
+# STATSIG_CLIENT_KEY='YOUR_CLIENT_KEY'

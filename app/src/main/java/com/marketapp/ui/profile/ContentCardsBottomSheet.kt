@@ -1,5 +1,7 @@
 package com.marketapp.ui.profile
 
+import android.content.Intent
+import androidx.core.net.toUri
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -8,6 +10,7 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.core.view.isVisible
 import androidx.recyclerview.widget.DiffUtil
+import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
@@ -17,6 +20,7 @@ import com.braze.events.ContentCardsUpdatedEvent
 import com.braze.events.IEventSubscriber
 import com.braze.models.cards.Card
 import com.braze.models.cards.CaptionedImageCard
+import com.braze.models.cards.ImageOnlyCard
 import com.braze.models.cards.ShortNewsCard
 import com.braze.models.cards.TextAnnouncementCard
 import android.util.Log
@@ -59,6 +63,22 @@ class ContentCardsBottomSheet : BottomSheetDialogFragment() {
             setHasFixedSize(false)
         }
 
+        ItemTouchHelper(object : ItemTouchHelper.SimpleCallback(
+            0, ItemTouchHelper.LEFT or ItemTouchHelper.RIGHT
+        ) {
+            override fun onMove(rv: RecyclerView, vh: RecyclerView.ViewHolder, t: RecyclerView.ViewHolder) = false
+            override fun onSwiped(vh: RecyclerView.ViewHolder, direction: Int) {
+                val card = cardAdapter.cardAt(vh.bindingAdapterPosition)
+                card.isDismissed = true
+                val newList = cardAdapter.currentList.toMutableList().also { it.remove(card) }
+                cardAdapter.submitList(newList)
+                if (newList.isEmpty()) {
+                    binding.tvEmpty.isVisible = true
+                    binding.recyclerCards.isVisible = false
+                }
+            }
+        }).attachToRecyclerView(binding.recyclerCards)
+
         val braze = Braze.getInstance(requireContext())
         contentCardsSubscriber = IEventSubscriber { event ->
             val act = activity ?: return@IEventSubscriber
@@ -84,6 +104,7 @@ class ContentCardsBottomSheet : BottomSheetDialogFragment() {
         Log.d("ContentCards", "┌─── ${cards.size} card(s) received ──────────────────────────")
         cards.forEachIndexed { i, card ->
             val (type, title, desc, img) = when (card) {
+                is ImageOnlyCard        -> Quad("Banner",           null,        null,              card.imageUrl)
                 is CaptionedImageCard   -> Quad("CaptionedImage",    card.title, card.description, card.imageUrl)
                 is ShortNewsCard        -> Quad("ShortNews",         card.title, card.description, card.imageUrl)
                 is TextAnnouncementCard -> Quad("TextAnnouncement",  card.title, card.description, null)
@@ -94,7 +115,7 @@ class ContentCardsBottomSheet : BottomSheetDialogFragment() {
             Log.d("ContentCards", "│     desc=${desc.orEmpty().ifEmpty { "<empty>" }}")
             Log.d("ContentCards", "│     img=${img.orEmpty().ifEmpty { "<none>" }}")
         }
-        Log.d("ContentCards", "└─────────────────────────────────────────────────────────")
+        Log.d("ContentCards", "└──────────────────────────m───────────────────────────────")
     }
 
     private fun showCards(cards: List<Card>) {
@@ -134,10 +155,11 @@ class ContentCardsBottomSheet : BottomSheetDialogFragment() {
 
             fun bind(card: Card) {
                 val (type, title, description, imageUrl) = when (card) {
+                    is ImageOnlyCard        -> Quad("Banner",       null,        null,              card.imageUrl)
                     is CaptionedImageCard   -> Quad("Image",        card.title,  card.description, card.imageUrl)
-                    is ShortNewsCard        -> Quad("News",         card.title,  card.description, null)
+                    is ShortNewsCard        -> Quad("News",         card.title,  card.description, card.imageUrl)
                     is TextAnnouncementCard -> Quad("Announcement", card.title,  card.description, null)
-                    else                    -> Quad("Banner",       null,        null,              null)
+                    else                    -> Quad("Unknown",      null,        null,              null)
                 }
                 b.tvCardType.text = type
                 b.tvCardTitle.isVisible = !title.isNullOrEmpty()
@@ -156,9 +178,17 @@ class ContentCardsBottomSheet : BottomSheetDialogFragment() {
                     b.imgCard.isVisible = false
                 }
 
-                b.root.setOnClickListener { card.logClick() }
+                b.root.setOnClickListener {
+                    card.logClick()
+                    card.url?.let { url ->
+                        startActivity(Intent(Intent.ACTION_VIEW, url.toUri()))
+                        dismiss()
+                    }
+                }
             }
         }
+
+        fun cardAt(position: Int): Card = getItem(position)
 
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int) = ViewHolder(
             ItemContentCardBinding.inflate(LayoutInflater.from(parent.context), parent, false)

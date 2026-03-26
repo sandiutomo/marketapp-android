@@ -15,6 +15,11 @@ import androidx.recyclerview.widget.RecyclerView
 import android.os.Bundle
 import android.view.View
 import coil.load
+import com.braze.Braze
+import com.braze.events.BannersUpdatedEvent
+import com.braze.events.IEventSubscriber
+import com.marketapp.config.ALL_BANNER_PLACEMENTS
+import com.marketapp.config.BannerDismissManager
 import com.marketapp.data.model.CartItem
 import com.marketapp.databinding.FragmentCartBinding
 import com.marketapp.databinding.ItemCartBinding
@@ -31,6 +36,7 @@ class CartFragment : Fragment() {
     private val binding get() = _binding!!
     private val viewModel: CartViewModel by viewModels()
     private lateinit var adapter: CartAdapter
+    private var bannerSubscriber: IEventSubscriber<BannersUpdatedEvent>? = null
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?) =
         FragmentCartBinding.inflate(inflater, container, false).also { _binding = it }.root
@@ -45,6 +51,25 @@ class CartFragment : Fragment() {
             )
         }
         viewModel.onCartViewed()
+
+        val braze = Braze.getInstance(requireContext())
+        bannerSubscriber = IEventSubscriber { event ->
+            val banner = event.getBanner("cart_banner")
+            val html = banner?.html
+            val hasContent = banner != null && !html.isNullOrEmpty() && !banner.isControl && !banner.isExpired()
+            val show = hasContent && BannerDismissManager.shouldShow("cart_banner", html!!)
+            activity?.runOnUiThread {
+                if (_binding != null) {
+                    binding.cartBannerContainer.visibility = if (show) View.VISIBLE else View.GONE
+                }
+            }
+        }
+        braze.subscribeToBannersUpdates(bannerSubscriber!!)
+        braze.requestBannersRefresh(ALL_BANNER_PLACEMENTS)
+        binding.btnCloseCartBanner.setOnClickListener {
+            BannerDismissManager.dismiss("cart_banner")
+            binding.cartBannerContainer.visibility = View.GONE
+        }
     }
 
     private fun setupRecycler() {
@@ -81,7 +106,14 @@ class CartFragment : Fragment() {
         }
     }
 
-    override fun onDestroyView() { super.onDestroyView(); _binding = null }
+    override fun onDestroyView() {
+        super.onDestroyView()
+        bannerSubscriber?.let {
+            Braze.getInstance(requireContext()).removeSingleSubscription(it, BannersUpdatedEvent::class.java)
+        }
+        bannerSubscriber = null
+        _binding = null
+    }
 }
 
 // ── Adapter ───────────────────────────────────────────────────────────────────

@@ -58,6 +58,7 @@ class HomeFragment : Fragment() {
         observeProducts()
         observePromotions()
         observeCategories()
+        observeWishlist()
         val braze = Braze.getInstance(requireContext())
         bannerSubscriber = IEventSubscriber { event ->
             val banner = event.getBanner("home_banner")
@@ -104,7 +105,8 @@ class HomeFragment : Fragment() {
 
     private fun setupRecycler() {
         adapter = ProductAdapter(
-            isWishlistEnabled = { experiments.isEnabled(FeatureFlag.WISHLIST_ENABLED) }
+            isWishlistEnabled  = { experiments.isEnabled(FeatureFlag.WISHLIST_ENABLED) },
+            onWishlistToggle   = { viewModel.toggleWishlist(it) }
         ) { product, position ->
             viewModel.onProductSelected(product, position)
             navigateToProduct(product.id)
@@ -235,6 +237,14 @@ class HomeFragment : Fragment() {
                         binding.chipGroupCategories.addView(chip)
                     }
                 }
+            }
+        }
+    }
+
+    private fun observeWishlist() {
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                viewModel.wishlist.collect { adapter.updateWishlistIds(it) }
             }
         }
     }

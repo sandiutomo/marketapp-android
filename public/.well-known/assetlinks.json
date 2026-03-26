@@ -1,0 +1,10 @@
+[{
+  "relation": ["delegate_permission/common.handle_all_urls"],
+  "target": {
+    "namespace": "android_app",
+    "package_name": "com.marketapp",
+    "sha256_cert_fingerprints": [
+      "60:DF:38:7F:78:41:8E:9C:E6:C6:22:16:FB:FD:CB:B5:D7:82:80:5E:AE:C6:2D:AC:CA:00:A8:70:7D:EF:69:C0"
+    ]
+  }
+}]

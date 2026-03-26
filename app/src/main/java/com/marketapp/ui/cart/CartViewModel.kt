@@ -28,8 +28,17 @@ class CartViewModel @Inject constructor(
 
     fun increaseQty(productId: Int) {
         val item = cartManager.cart.value.items.find { it.product.id == productId } ?: return
-        val newQty = item.quantity + 1
-        cartManager.updateQuantity(productId, newQty)
+        cartManager.updateQuantity(productId, item.quantity + 1)
+        analytics.track(
+            AnalyticsEvent.AddToCart(
+                productId     = item.product.id.toString(),
+                productName   = item.product.title,
+                price         = item.product.priceIdr,
+                quantity      = 1,
+                category      = item.product.category,
+                cartItemCount = cartManager.cart.value.items.sumOf { it.quantity }
+            )
+        )
     }
 
     fun decreaseQty(productId: Int) {
@@ -37,8 +46,16 @@ class CartViewModel @Inject constructor(
         if (item.quantity <= 1) {
             removeItem(productId); return
         }
-        val newQty = item.quantity - 1
-        cartManager.updateQuantity(productId, newQty)
+        cartManager.updateQuantity(productId, item.quantity - 1)
+        analytics.track(
+            AnalyticsEvent.RemoveFromCart(
+                productId     = item.product.id.toString(),
+                productName   = item.product.title,
+                price         = item.product.priceIdr,
+                quantity      = 1,
+                cartItemCount = cartManager.cart.value.items.sumOf { it.quantity }
+            )
+        )
     }
 
     fun removeItem(productId: Int) {
@@ -48,7 +65,8 @@ class CartViewModel @Inject constructor(
             productId = item.product.id.toString(),
             productName = item.product.title,
             price = item.product.priceIdr,
-            quantity = item.quantity
+            quantity = item.quantity,
+            cartItemCount = cartManager.cart.value.items.sumOf { it.quantity }
         ))
     }
 }

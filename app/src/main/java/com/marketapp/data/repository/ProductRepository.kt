@@ -1,35 +1,66 @@
 package com.marketapp.data.repository
 
 import com.marketapp.data.model.Product
+import com.marketapp.data.model.Rating
 import retrofit2.http.GET
 import retrofit2.http.Path
 import retrofit2.http.Query
 import javax.inject.Inject
 import javax.inject.Singleton
 
-// ── Retrofit API ──────────────────────────────────────────────────────────────
+// ── DummyJSON response models ──────────────────────────────────────────────────
+// DummyJSON wraps list results and uses different field names from FakeStore.
 
-interface FakeStoreApi {
+data class DummyProductListResponse(val products: List<DummyProduct>)
+
+// Categories come back as objects {slug, name, url} — we use slug as the category key.
+data class DummyCategoryItem(val slug: String, val name: String)
+
+data class DummyProduct(
+    val id: Int,
+    val title: String,
+    val price: Double,
+    val description: String,
+    val category: String,
+    val thumbnail: String,  // DummyJSON uses "thumbnail" where FakeStore used "image"
+    val rating: Double = 0.0,
+    val stock: Int = 0
+) {
+    fun toProduct() = Product(
+        id          = id,
+        title       = title,
+        price       = price,
+        description = description,
+        category    = category,
+        image       = thumbnail,
+        rating      = Rating(rate = rating, count = stock)
+    )
+}
+
+// ── Retrofit API ───────────────────────────────────────────────────────────────
+
+interface DummyJsonApi {
     @GET("products")
     suspend fun getProducts(
-        @Query("limit") limit: Int = 20,
-        @Query("sort") sort: String = "asc"
-    ): List<Product>
+        @Query("limit")  limit:  Int    = 40,
+        @Query("sortBy") sortBy: String = "title",
+        @Query("order")  order:  String = "asc"
+    ): DummyProductListResponse
 
     @GET("products/{id}")
-    suspend fun getProduct(@Path("id") id: Int): Product
+    suspend fun getProduct(@Path("id") id: Int): DummyProduct
 
     @GET("products/categories")
-    suspend fun getCategories(): List<String>
+    suspend fun getCategories(): List<DummyCategoryItem>
 
     @GET("products/category/{category}")
-    suspend fun getProductsByCategory(@Path("category") category: String): List<Product>
+    suspend fun getProductsByCategory(@Path("category") category: String): DummyProductListResponse
 }
 
 // ── Repository Interface ───────────────────────────────────────────────────────
 
 interface ProductRepository {
-    suspend fun getProducts(limit: Int = 20): Result<List<Product>>
+    suspend fun getProducts(limit: Int = 40): Result<List<Product>>
     suspend fun getProduct(id: Int): Result<Product>
     suspend fun getCategories(): Result<List<String>>
     suspend fun getProductsByCategory(category: String): Result<List<Product>>
@@ -40,7 +71,7 @@ interface ProductRepository {
 
 @Singleton
 class ProductRepositoryImpl @Inject constructor(
-    private val api: FakeStoreApi
+    private val api: DummyJsonApi
 ) : ProductRepository {
 
     // Simple in-memory cache — replace with Room if offline persistence is needed
@@ -50,7 +81,7 @@ class ProductRepositoryImpl @Inject constructor(
     private var searchIndex: List<Triple<String, String, String>>? = null
 
     override suspend fun getProducts(limit: Int): Result<List<Product>> = runCatching {
-        cachedProducts ?: api.getProducts(limit).also { primeCache(it) }
+        cachedProducts ?: api.getProducts(limit = limit).products.map { it.toProduct() }.also { primeCache(it) }
     }
 
     private fun primeCache(products: List<Product>) {
@@ -61,20 +92,20 @@ class ProductRepositoryImpl @Inject constructor(
     }
 
     override suspend fun getProduct(id: Int): Result<Product> = runCatching {
-        cachedProducts?.find { it.id == id } ?: api.getProduct(id)
+        cachedProducts?.find { it.id == id } ?: api.getProduct(id).toProduct()
     }
 
     override suspend fun getCategories(): Result<List<String>> = runCatching {
-        api.getCategories()
+        api.getCategories().map { it.slug }
     }
 
     override suspend fun getProductsByCategory(category: String): Result<List<Product>> = runCatching {
         cachedProducts?.filter { it.category == category }
-            ?: api.getProductsByCategory(category)
+            ?: api.getProductsByCategory(category).products.map { it.toProduct() }
     }
 
     override suspend fun searchProducts(query: String): Result<List<Product>> = runCatching {
-        val all = cachedProducts ?: api.getProducts(30).also { primeCache(it) }
+        val all = cachedProducts ?: api.getProducts(limit = 40).products.map { it.toProduct() }.also { primeCache(it) }
         val idx = searchIndex ?: return@runCatching all
         val q = query.lowercase()
         all.filterIndexed { i, _ ->

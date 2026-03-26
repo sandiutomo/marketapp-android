@@ -3,6 +3,8 @@ package com.marketapp.analytics
 import android.content.Context
 import com.appsflyer.AppsFlyerLib
 import com.marketapp.BuildConfig
+import com.marketapp.config.ExperimentManager
+import com.marketapp.config.FeatureGate
 import com.segment.analytics.kotlin.android.Analytics as segmentAnalytics
 import com.segment.analytics.kotlin.core.Analytics
 import com.segment.analytics.kotlin.core.BaseEvent
@@ -23,15 +25,19 @@ import javax.inject.Singleton
  */
 @Singleton
 class SegmentTracker @Inject constructor(
-    @ApplicationContext private val context: Context
+    @ApplicationContext private val context: Context,
+    private val experimentManager: ExperimentManager
 ) : AnalyticsTracker {
 
     override val name = "Segment"
 
     private lateinit var analytics: Analytics
+    private var sdkEnabled    = true
     private var consentEnabled = true
 
     override suspend fun initialize() {
+        sdkEnabled = experimentManager.isStatsigGateEnabled(FeatureGate.SDK_SEGMENT.key)
+        if (!sdkEnabled) return
         analytics = segmentAnalytics(BuildConfig.SEGMENT_WRITE_KEY, context) {
             trackApplicationLifecycleEvents = true
             flushAt                         = 3
@@ -43,7 +49,8 @@ class SegmentTracker @Inject constructor(
     }
 
     override fun track(event: AnalyticsEvent) {
-        if (!consentEnabled) return
+        if (!sdkEnabled || !consentEnabled) return
+        if (event.isBrazeOnly || event.isAmplitudeOnly) return
 
         when (event) {
             // ── Ecommerce Spec ────────────────────────────────────────────────
@@ -153,7 +160,7 @@ class SegmentTracker @Inject constructor(
     }
 
     override fun identify(userId: String, properties: UserProperties) {
-        if (!consentEnabled) return
+        if (!sdkEnabled || !consentEnabled) return
         analytics.identify(userId, buildJsonObject {
             properties.email?.let             { put("email",              JsonPrimitive(it)) }
             val displayName = listOfNotNull(properties.firstName, properties.lastName)
@@ -172,10 +179,12 @@ class SegmentTracker @Inject constructor(
     }
 
     override fun reset() {
+        if (!sdkEnabled) return
         analytics.reset()
     }
 
     override fun alias(newId: String, oldId: String) {
+        if (!sdkEnabled) return
         analytics.alias(newId)
     }
 

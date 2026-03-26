@@ -1,7 +1,7 @@
 package com.marketapp.di
 
 import com.marketapp.BuildConfig
-import com.marketapp.data.repository.FakeStoreApi
+import com.marketapp.data.repository.DummyJsonApi
 import com.marketapp.data.repository.ProductRepository
 import com.marketapp.data.repository.ProductRepositoryImpl
 import com.posthog.PostHogOkHttpInterceptor
@@ -21,8 +21,7 @@ import javax.inject.Singleton
 @InstallIn(SingletonComponent::class)
 object NetworkModule {
 
-    // Using FakeStore API — free, no auth needed, perfect for testing
-    private const val BASE_URL = "https://fakestoreapi.com/"
+    private const val BASE_URL = "https://dummyjson.com/"
 
     @Provides @Singleton
     fun provideOkHttpClient(): OkHttpClient = OkHttpClient.Builder()
@@ -50,8 +49,8 @@ object NetworkModule {
         .build()
 
     @Provides @Singleton
-    fun provideFakeStoreApi(retrofit: Retrofit): FakeStoreApi =
-        retrofit.create(FakeStoreApi::class.java)
+    fun provideDummyJsonApi(retrofit: Retrofit): DummyJsonApi =
+        retrofit.create(DummyJsonApi::class.java)
 }
 
 @Module

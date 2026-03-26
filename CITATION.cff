@@ -1,0 +1,29 @@
+cff-version: 1.2.0
+title: "MarketApp: Analytics & Martech Sample App"
+message: "If you use this project, please cite it as below."
+type: software
+authors:
+  - family-names: "Utomo"
+    given-names: "Sandi"
+    orcid: "https://orcid.org/0000-0000-0000-0000"
+    affiliation: "Independent Developer"
+repository-code: "https://github.com/sandiutomo/MarketApp"
+repository: "https://github.com/sandiutomo/MarketApp"
+url: "https://github.com/sandiutomo/MarketApp"
+abstract: "A sample Android e-commerce app that showcases multiple popular analytics and martech platforms (Firebase, Amplitude, Mixpanel, Braze, PostHog, and more) in action. A complete learning project demonstrating how professional teams use industry-leading analytics, CRM, push, and feature flagging platforms together in real applications."
+keywords:
+  - android
+  - analytics
+  - firebase
+  - amplitude
+  - mixpanel
+  - braze
+  - posthog
+  - martech
+  - sample-app
+  - learning
+  - kotlin
+  - mvvm
+license: MIT
+version: 1.0.0
+date-released: 2025-03-27

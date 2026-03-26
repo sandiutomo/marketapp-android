@@ -181,6 +181,13 @@ class AnalyticsManager @Inject constructor(
      * PostHog and Clarity both modify [android.view.View.contentDescription] / SDK state
      * that is bound to the view hierarchy. No async dispatch.
      */
+    fun requestLocationInitialization() {
+        trackers.forEach { tracker ->
+            runCatching { tracker.requestLocationInitialization() }
+                .onFailure { log("LOCATION_INIT FAILED [${tracker.name}]", it) }
+        }
+    }
+
     fun maskView(view: android.view.View) {
         trackers.forEach { tracker ->
             runCatching { tracker.maskView(view) }

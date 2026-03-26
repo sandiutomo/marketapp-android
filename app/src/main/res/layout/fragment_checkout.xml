@@ -18,6 +18,19 @@
         app:navigationIconTint="@color/primary"
         app:title="@string/shipping_address" />
 
+    <!-- PostHog flag: checkout-progress-bar — shown for cart-abandoner cohort -->
+    <com.google.android.material.progressindicator.LinearProgressIndicator
+        android:id="@+id/checkout_progress"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:visibility="gone"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/toolbar"
+        app:indicatorColor="@color/primary"
+        app:trackCornerRadius="0dp"
+        android:progress="50" />
+
     <androidx.core.widget.NestedScrollView
         android:layout_width="0dp"
         android:layout_height="0dp"
@@ -26,7 +39,7 @@
         app:layout_constraintBottom_toTopOf="@id/btn_continue"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/toolbar">
+        app:layout_constraintTop_toBottomOf="@id/checkout_progress">
 
         <LinearLayout
             android:layout_width="match_parent"

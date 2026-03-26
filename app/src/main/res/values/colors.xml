@@ -29,6 +29,10 @@
     <color name="error">#FF3B30</color>
     <color name="badge">#FF3B30</color>
 
+    <!-- VIP / Premium — used by Braze checkout-cta flag targeting high-value users -->
+    <color name="gold_premium">#C9A227</color>
+    <color name="gold_premium_dark">#9E7F1A</color>
+
     <!-- Status bar / Nav -->
     <color name="status_bar">#F2F2F7</color>
     <color name="nav_bar">#F2F2F7</color>
@@ -38,4 +42,20 @@
     <!-- Bottom Nav -->
     <color name="bottom_nav_selected">#007AFF</color>
     <color name="bottom_nav_unselected">#8E8E93</color>
+
+    <!-- Debug panel buttons -->
+    <color name="debug_gray">#8E8E93</color>
+    <color name="braze_purple">#7C3AED</color>
+    <color name="amplitude_blue">#3A7EF5</color>
+    <color name="amplitude_blue_light">#7AAEFF</color>
+
+    <!-- Debug panel — Braze section -->
+    <color name="braze_purple_bg">#EEEDFE</color>
+    <color name="braze_purple_text">#3C3489</color>
+    <color name="braze_dot">#534AB7</color>
+
+    <!-- Debug panel — Amplitude section -->
+    <color name="amplitude_blue_bg">#E6F1FB</color>
+    <color name="amplitude_blue_text">#0C447C</color>
+    <color name="amplitude_dot">#378ADD</color>
 </resources>

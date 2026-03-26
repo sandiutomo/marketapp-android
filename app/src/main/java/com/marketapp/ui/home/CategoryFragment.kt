@@ -41,7 +41,8 @@ class CategoryFragment : Fragment() {
         binding.toolbar.setNavigationOnClickListener { findNavController().navigateUp() }
 
         adapter = ProductAdapter(
-            isWishlistEnabled = { experiments.isEnabled(FeatureFlag.WISHLIST_ENABLED) }
+            isWishlistEnabled = { experiments.isEnabled(FeatureFlag.WISHLIST_ENABLED) },
+            onWishlistToggle  = { viewModel.toggleWishlist(it) }
         ) { product, position ->
             viewModel.onProductSelected(product, position)
             findNavController().navigate(
@@ -62,6 +63,7 @@ class CategoryFragment : Fragment() {
             setHasFixedSize(false)
         }
 
+        observeWishlist()
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 viewModel.products.collectLatest { state ->
@@ -88,6 +90,14 @@ class CategoryFragment : Fragment() {
                         }
                     }
                 }
+            }
+        }
+    }
+
+    private fun observeWishlist() {
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                viewModel.wishlist.collect { adapter.updateWishlistIds(it) }
             }
         }
     }

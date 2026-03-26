@@ -144,6 +144,15 @@
 
                 </LinearLayout>
 
+                <!-- Shipping estimate — value from Firebase Remote Config max_shipping_days -->
+                <TextView
+                    android:id="@+id/tv_shipping_days"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/spacing_8"
+                    android:textAppearance="@style/TextAppearance.MarketApp.Footnote"
+                    android:textColor="@color/text_tertiary" />
+
             </LinearLayout>
 
             <!-- Separator -->

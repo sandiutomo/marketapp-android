@@ -19,5 +19,10 @@ enum class PostHogFlag(val key: String, val label: String) {
     // "welcome-back" : randomly picks "Welcome back!" or "Hi again!"
     // "lets-shop"    : randomly picks one of 4 action-oriented messages
     HOME_GREETING_VARIANT ("home-greeting-variant", "Home Greeting Variant"),
+
+    // Boolean flag — shows a LinearProgressIndicator on both checkout steps (50% → 100%).
+    // Target: users who previously abandoned checkout (PostHog cohort: viewed cart, no purchase).
+    // Dashboard: PostHog → Feature Flags → "checkout-progress-bar" → release conditions → cohort.
+    CHECKOUT_PROGRESS_BAR ("checkout-progress-bar", "Checkout Progress Bar"),
     ;
 }

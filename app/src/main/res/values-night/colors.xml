@@ -37,4 +37,14 @@
     <!-- Bottom Nav -->
     <color name="bottom_nav_selected">#0A84FF</color>
     <color name="bottom_nav_unselected">#636366</color>
+
+    <!-- Debug panel — Braze section (dark mode) -->
+    <color name="braze_purple_bg">#2A2640</color>
+    <color name="braze_purple_text">#AFA9EC</color>
+    <color name="braze_dot">#534AB7</color>
+
+    <!-- Debug panel — Amplitude section (dark mode) -->
+    <color name="amplitude_blue_bg">#1A2E4A</color>
+    <color name="amplitude_blue_text">#85B7EB</color>
+    <color name="amplitude_dot">#378ADD</color>
 </resources>

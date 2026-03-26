@@ -4,19 +4,21 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.view.isVisible
+import androidx.credentials.CredentialManager
+import androidx.credentials.GetCredentialRequest
 import androidx.fragment.app.activityViewModels
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
-import com.google.android.gms.auth.api.signin.GoogleSignIn
-import com.google.android.gms.auth.api.signin.GoogleSignInOptions
+import com.google.android.libraries.identity.googleid.GetGoogleIdOption
+import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import com.google.android.material.snackbar.Snackbar
 import com.marketapp.R
 import com.marketapp.databinding.BottomSheetLoginBinding
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 
 @AndroidEntryPoint
@@ -28,23 +30,6 @@ class LoginBottomSheet : BottomSheetDialogFragment() {
     private val viewModel: AuthViewModel by activityViewModels()
 
     private var isRegisterMode = false
-
-    private val googleSignInLauncher = registerForActivityResult(
-        ActivityResultContracts.StartActivityForResult()
-    ) { result ->
-        runCatching {
-            GoogleSignIn.getSignedInAccountFromIntent(result.data).result
-        }.onSuccess { account ->
-            val idToken = account?.idToken
-            if (idToken != null) {
-                viewModel.signInWithGoogle(idToken)
-            } else {
-                showError(getString(R.string.error_generic))
-            }
-        }.onFailure {
-            showError(it.message ?: getString(R.string.error_generic))
-        }
-    }
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -94,12 +79,25 @@ class LoginBottomSheet : BottomSheetDialogFragment() {
     }
 
     private fun launchGoogleSignIn() {
-        val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
-            .requestIdToken(getString(R.string.default_web_client_id))
-            .requestEmail()
+        val credentialManager = CredentialManager.create(requireContext())
+        val request = GetCredentialRequest.Builder()
+            .addCredentialOption(
+                GetGoogleIdOption.Builder()
+                    .setFilterByAuthorizedAccounts(false)
+                    .setServerClientId(getString(R.string.default_web_client_id))
+                    .build()
+            )
             .build()
-        val client = GoogleSignIn.getClient(requireActivity(), gso)
-        googleSignInLauncher.launch(client.signInIntent)
+        lifecycleScope.launch {
+            runCatching {
+                val result = credentialManager.getCredential(requireActivity(), request)
+                GoogleIdTokenCredential.createFrom(result.credential.data).idToken
+            }.onSuccess { idToken ->
+                viewModel.signInWithGoogle(idToken)
+            }.onFailure { e ->
+                if (e !is CancellationException) showError(e.message ?: getString(R.string.error_generic))
+            }
+        }
     }
 
     private fun onPrimaryAction() {

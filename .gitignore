@@ -21,3 +21,6 @@ app/src/main/res/values/braze.xml
 
 # Local documentation — not committed to repo
 docs/
+
+# Firebase CLI local cache
+.firebase/

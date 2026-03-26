@@ -81,6 +81,10 @@ class CheckoutViewModel @Inject constructor(
     private var pendingOrderValue: Double = 0.0
     private var pendingPaymentMethod: String = ""
 
+    // Retained after onOrderConfirmed() so the refund button can reference the placed order.
+    private var confirmedOrderId: String = ""
+    private var confirmedOrderValue: Double = 0.0
+
     // GA4: add_payment_info — fired when the user taps "Place Order" on the payment screen.
     fun placeOrder(paymentMethod: String): Order {
         val c = cart.value
@@ -158,6 +162,8 @@ class CheckoutViewModel @Inject constructor(
                 couponUsed    = null
             )
         )
+        confirmedOrderId    = pendingOrderId
+        confirmedOrderValue = pendingOrderValue
         pendingOrderId       = ""
         pendingOrderItems    = emptyList()
         pendingOrderValue    = 0.0
@@ -165,21 +171,21 @@ class CheckoutViewModel @Inject constructor(
         _aiOrderMessage.value = ""
     }
 
+    fun onRefundRequested() {
+        if (confirmedOrderId.isEmpty()) return
+        analytics.track(
+            AnalyticsEvent.OrderRefunded(
+                orderId = confirmedOrderId,
+                value   = confirmedOrderValue
+            )
+        )
+    }
+
     // ── Shipping fee ─────────────────────────────────────────────────────────────
 
     private val idrFormat = NumberFormat.getIntegerInstance(Locale("in", "ID"))
 
-    /**
-     * Returns the flat shipping fee in IDR, or 0.0 if the cart meets the free-shipping threshold.
-     *
-     * Threshold is read from Firebase RC (`free_shipping_threshold_idr`):
-     *   - 0.0          → always free (default / high-LTV bucket)
-     *   - 2_000_000.0  → low-LTV bucket: charge shipping on orders below 2M IDR
-     */
-    fun shippingFeeIdr(): Double {
-        val threshold = remoteConfig.getDouble(FeatureFlag.FREE_SHIPPING_THRESHOLD_IDR)
-        return if (threshold > 0.0 && cart.value.totalValueIdr < threshold) SHIPPING_FEE_IDR else 0.0
-    }
+    fun shippingFeeIdr(): Double = 0.0
 
     fun formattedShippingFee(): String {
         val fee = shippingFeeIdr()

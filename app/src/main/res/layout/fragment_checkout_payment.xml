@@ -18,6 +18,19 @@
         app:navigationIconTint="@color/primary"
         app:title="@string/payment_method" />
 
+    <!-- PostHog flag: checkout-progress-bar — step 2 = 100% complete -->
+    <com.google.android.material.progressindicator.LinearProgressIndicator
+        android:id="@+id/checkout_progress"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:visibility="gone"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/toolbar"
+        app:indicatorColor="@color/primary"
+        app:trackCornerRadius="0dp"
+        android:progress="100" />
+
     <androidx.core.widget.NestedScrollView
         android:layout_width="0dp"
         android:layout_height="0dp"
@@ -26,7 +39,7 @@
         app:layout_constraintBottom_toTopOf="@id/place_order_btn"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/toolbar">
+        app:layout_constraintTop_toBottomOf="@id/checkout_progress">
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -168,6 +181,15 @@
                             android:layout_height="wrap_content"
                             android:textAppearance="@style/TextAppearance.MarketApp.Body" />
                     </LinearLayout>
+
+                    <!-- Shipping estimate — value from Firebase Remote Config max_shipping_days -->
+                    <TextView
+                        android:id="@+id/tv_shipping_days"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="@dimen/spacing_4"
+                        android:textAppearance="@style/TextAppearance.MarketApp.Footnote"
+                        android:textColor="@color/text_tertiary" />
 
                     <View
                         android:layout_width="match_parent"

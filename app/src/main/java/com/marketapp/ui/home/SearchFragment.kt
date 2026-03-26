@@ -40,14 +40,18 @@ class SearchFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        viewModel.clearResults()
+        binding.searchBar.editText?.setText("")
         setupAdapter()
         setupSearchBar()
         observeResults()
+        observeWishlist()
     }
 
     private fun setupAdapter() {
         adapter = ProductAdapter(
-            isWishlistEnabled = { experiments.isEnabled(FeatureFlag.WISHLIST_ENABLED) }
+            isWishlistEnabled = { experiments.isEnabled(FeatureFlag.WISHLIST_ENABLED) },
+            onWishlistToggle  = { viewModel.toggleWishlist(it) }
         ) { product, position ->
             viewModel.onResultTapped(product, position)
             findNavController().navigate(
@@ -125,6 +129,14 @@ class SearchFragment : Fragment() {
                     }
                 }
             }
+            }
+        }
+    }
+
+    private fun observeWishlist() {
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                viewModel.wishlist.collect { adapter.updateWishlistIds(it) }
             }
         }
     }

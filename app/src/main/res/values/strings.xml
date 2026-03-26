@@ -24,6 +24,7 @@
     <string name="add_to_cart">Add to Cart</string>
     <string name="buy_now">Buy Now</string>
     <string name="added_to_cart">Added to Cart</string>
+    <string name="view_cart">View Cart</string>
     <string name="in_stock">In Stock</string>
     <string name="review_count">%d ratings</string>
     <string name="product_description">Description</string>
@@ -61,6 +62,8 @@
     <string name="sign_out">Sign Out</string>
     <string name="orders">Orders</string>
     <string name="wishlist">Wishlist</string>
+    <string name="wishlist_empty">Your wishlist is empty</string>
+    <string name="wishlist_empty_sub">Tap the heart on any product to save it here</string>
     <string name="addresses">Addresses</string>
     <string name="settings">Settings</string>
     <string name="notifications">Notifications</string>
@@ -98,6 +101,14 @@
     <string name="debug_trigger_banner">Banner Trigger</string>
     <string name="debug_trigger_inapp">In-app Message Trigger</string>
     <string name="debug_trigger_content_card">Content Cards Trigger</string>
+    <string name="debug_trigger_guide">Amplitude Guide Trigger</string>
+    <string name="debug_preview_survey">Preview Amplitude Survey</string>
+    <string name="debug_preview_guide">Preview Amplitude Guide</string>
     <string name="debug_trigger_experiment">Test Experiment</string>
-    <string name="debug_clear_braze_cache">Clear Braze Cache</string>
+    <string name="debug_force_refresh_flags">Force Refresh All Flags</string>
+
+    <!-- Edit Name -->
+    <string name="edit_name">Edit Name</string>
+    <string name="save">Save</string>
+    <string name="error_name_empty">Name cannot be empty</string>
 </resources>

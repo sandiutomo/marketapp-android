@@ -1,8 +1,5 @@
 package com.marketapp.data.repository
 
-import android.content.Context
-import com.google.android.gms.auth.api.signin.GoogleSignIn
-import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.GoogleAuthProvider
@@ -10,7 +7,6 @@ import com.google.firebase.auth.UserProfileChangeRequest
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
 import com.google.firebase.messaging.FirebaseMessaging
-import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -32,13 +28,13 @@ interface AuthRepository {
     suspend fun signInWithEmail(email: String, password: String): Result<FirebaseUser>
     suspend fun registerWithEmail(email: String, password: String, name: String): Result<FirebaseUser>
     suspend fun signOut()
+    suspend fun updateDisplayName(name: String): Result<Unit>
 }
 
 @Singleton
 class AuthRepositoryImpl @Inject constructor(
     private val auth: FirebaseAuth,
-    private val firestore: FirebaseFirestore,
-    @ApplicationContext private val context: Context
+    private val firestore: FirebaseFirestore
 ) : AuthRepository {
 
     // Independent scope for background Firestore/FCM operations.
@@ -99,9 +95,19 @@ class AuthRepositoryImpl @Inject constructor(
 
     override suspend fun signOut() {
         auth.signOut()
-        runCatching {
-            val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN).build()
-            GoogleSignIn.getClient(context, gso).signOut().await()
+    }
+
+    override suspend fun updateDisplayName(name: String): Result<Unit> {
+        return try {
+            val user = auth.currentUser ?: return Result.failure(Exception("Not signed in"))
+            val profileUpdates = UserProfileChangeRequest.Builder().setDisplayName(name).build()
+            user.updateProfile(profileUpdates).await()
+            bgScope.launch { upsertFirestoreUser(user, name) }
+            Result.success(Unit)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Result.failure(e)
         }
     }
 

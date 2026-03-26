@@ -25,6 +25,13 @@ sealed class AuthUiState {
     data class Error(val message: String) : AuthUiState()
 }
 
+sealed class UpdateNameState {
+    object Idle : UpdateNameState()
+    object Loading : UpdateNameState()
+    object Success : UpdateNameState()
+    data class Error(val message: String) : UpdateNameState()
+}
+
 @HiltViewModel
 class AuthViewModel @Inject constructor(
     private val authRepository: AuthRepository,
@@ -39,6 +46,9 @@ class AuthViewModel @Inject constructor(
 
     private val _uiState = MutableStateFlow<AuthUiState>(AuthUiState.Idle)
     val uiState: StateFlow<AuthUiState> = _uiState.asStateFlow()
+
+    private val _updateNameState = MutableStateFlow<UpdateNameState>(UpdateNameState.Idle)
+    val updateNameState: StateFlow<UpdateNameState> = _updateNameState.asStateFlow()
 
     // Epoch ms when the current session started; 0 when no session is active.
     private var sessionStartMs: Long = 0L
@@ -125,6 +135,34 @@ class AuthViewModel @Inject constructor(
             authRepository.signOut()
             userStats.clear()
             analyticsManager.reset()
+        }
+    }
+
+    fun resetUpdateNameState() {
+        _updateNameState.value = UpdateNameState.Idle
+    }
+
+    fun updateName(name: String) {
+        viewModelScope.launch {
+            _updateNameState.value = UpdateNameState.Loading
+            authRepository.updateDisplayName(name.trim())
+                .onSuccess {
+                    authState.value?.let { user ->
+                        analyticsManager.identify(
+                            userId = user.uid,
+                            properties = UserProperties(
+                                userId        = user.uid,
+                                email         = user.email,
+                                name          = name.trim(),
+                                deviceId      = deviceInfo.deviceId,
+                                appSetId      = deviceInfo.appSetId,
+                                advertisingId = deviceInfo.advertisingId
+                            )
+                        )
+                    }
+                    _updateNameState.value = UpdateNameState.Success
+                }
+                .onFailure { _updateNameState.value = UpdateNameState.Error(it.message ?: "Failed to update name") }
         }
     }
 

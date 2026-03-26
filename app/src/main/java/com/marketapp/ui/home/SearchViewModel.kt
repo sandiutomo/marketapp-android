@@ -7,11 +7,13 @@ import com.marketapp.BuildConfig
 import com.marketapp.ai.AiRepository
 import com.marketapp.analytics.AnalyticsEvent
 import com.marketapp.analytics.AnalyticsManager
+import com.marketapp.analytics.EcommerceItem
 import com.marketapp.analytics.PerformanceMonitor
 import com.marketapp.config.FeatureFlag
 import com.marketapp.config.RemoteConfigManager
 import com.marketapp.data.model.Product
 import com.marketapp.data.model.UiState
+import com.marketapp.data.repository.CartManager
 import com.marketapp.data.repository.ProductRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.FlowPreview
@@ -26,8 +28,23 @@ class SearchViewModel @Inject constructor(
     private val analytics: AnalyticsManager,
     private val perf: PerformanceMonitor,
     private val aiRepository: AiRepository,
-    private val remoteConfig: RemoteConfigManager
+    private val remoteConfig: RemoteConfigManager,
+    private val cartManager: CartManager
 ) : ViewModel() {
+
+    val wishlist: StateFlow<Set<Int>> = cartManager.wishlist
+
+    fun toggleWishlist(product: Product) {
+        val added = cartManager.toggleWishlist(product.id)
+        analytics.track(
+            AnalyticsEvent.ProductWishlisted(
+                productId   = product.id.toString(),
+                productName = product.title,
+                price       = product.priceIdr,
+                added       = added
+            )
+        )
+    }
 
     private val _query = MutableStateFlow("")
     val query: StateFlow<String> = _query
@@ -42,7 +59,9 @@ class SearchViewModel @Inject constructor(
                 .debounce(800)
                 .filter { it.length >= 2 }
                 .distinctUntilChanged()
-                .collect { query -> searchKeyword(query) }
+                .collect { query ->
+                    if (remoteConfig.isEnabled(FeatureFlag.SEARCH_AUTOCOMPLETE)) searchKeyword(query)
+                }
         }
     }
 
@@ -90,7 +109,26 @@ class SearchViewModel @Inject constructor(
         }
     }
 
+    fun clearResults() {
+        _query.value = ""
+        _results.value = null
+    }
+
     fun onResultTapped(product: Product, position: Int) {
         analytics.track(AnalyticsEvent.SearchResultTapped(product.id.toString(), position))
+        analytics.track(
+            AnalyticsEvent.ProductSelected(
+                listId   = "search_results",
+                listName = "Search Results",
+                item     = EcommerceItem(
+                    itemId   = product.id.toString(),
+                    itemName = product.title,
+                    price    = product.priceIdr,
+                    quantity = 1,
+                    category = product.category,
+                    index    = position
+                )
+            )
+        )
     }
 }

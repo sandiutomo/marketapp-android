@@ -35,6 +35,24 @@ class RemoteConfigManager @Inject constructor() {
     }
 
     /**
+     * Force-fetch ignoring the minimum interval — use from the debug panel before a demo.
+     * Restores the normal interval after the fetch completes.
+     */
+    fun forceRefresh(onComplete: (() -> Unit)? = null) {
+        rc.setConfigSettingsAsync(remoteConfigSettings {
+            minimumFetchIntervalInSeconds = 0L
+        }).addOnCompleteListener {
+            rc.fetchAndActivate().addOnCompleteListener { task ->
+                rc.setConfigSettingsAsync(remoteConfigSettings {
+                    minimumFetchIntervalInSeconds = if (BuildConfig.DEBUG) 30L else 3600L
+                })
+                if (BuildConfig.DEBUG) Log.d(TAG, "force fetch ${if (task.isSuccessful) "OK — ${if (task.result) "updated" else "unchanged"}" else "FAILED"}")
+                onComplete?.invoke()
+            }
+        }
+    }
+
+    /**
      * Call once on app start — fire-and-forget; next launch uses freshly fetched values.
      */
     fun fetchAndActivate() {
@@ -89,36 +107,6 @@ class RemoteConfigManager @Inject constructor() {
 /**
  * Firebase Remote Config feature flags and configuration values.
  *
- * ─────────────────────────────────────────────────────────────────────────────
- * FIREBASE REMOTE CONFIG — E-COMMERCE USE CASES & SETUP GUIDE
- * ─────────────────────────────────────────────────────────────────────────────
- *
- * 1. KILL SWITCHES  (Boolean flags, default = true)
- *    Disable critical flows instantly without a release:
- *      PAYMENT_METHOD_COD_ENABLED → toggle Cash-on-Delivery by region
- *      FIRESTORE_WRITE_ENABLED    → gate Firestore order write under DB load
- *      AI_ORDER_MESSAGE_ENABLED   → gate Gemini order confirmation message
- *      AI_SEARCH_ENABLED          → gate Gemini semantic search
- *
- * 2. FEATURE ROLLOUT  (Boolean flags, default = false, use % audience condition)
- *    Deploy to a percentage of users and monitor metrics before full rollout.
- *    In the Firebase Console → Remote Config, create a "Percentage audience"
- *    condition (e.g. random_percentile ≤ 10) and override the flag to true:
- *      AI_PRODUCT_SORTING_ENABLED  → AI-ranked home feed via Gemini
- *
- * 3. BUSINESS CONFIGURATION VALUES  (Numeric/Boolean flags)
- *    Tune business rules without a code change or re-release:
- *      FREE_SHIPPING_THRESHOLD_IDR → order value for free shipping (IDR)
- *      CART_ITEM_LIMIT             → max line-items allowed in a single cart
- *      MINIMUM_ORDER_VALUE_IDR     → minimum order value required for checkout
- *      MAX_SHIPPING_DAYS           → maximum promised delivery window (days)
- *
- * 4. UX / MERCHANDISING  (Boolean flags)
- *    Control banners and UI widgets from the dashboard:
- *      SHOW_PROMOTIONS_BANNER     → seasonal promo banner on the home screen
- *      SEARCH_AUTOCOMPLETE        → live autocomplete in the search bar
- *      WISHLIST_ENABLED           → heart/wishlist button on product cards
- *
  * SETUP STEPS
  *  1. Create each flag in Firebase Console → Remote Config with the matching key.
  *  2. Set a default in remote_config_defaults.xml (used when offline or before
@@ -134,23 +122,18 @@ class RemoteConfigManager @Inject constructor() {
  * ─────────────────────────────────────────────────────────────────────────────
  */
 enum class FeatureFlag(val key: String) {
-    // UX / Merchandising ──────────────────────────────────────────────────────────────────────────
+    // Kill Switches ───────────────────────────────────────────────────────────────────────────────
+    AI_PRODUCT_SORTING_ENABLED       ("ai_product_sorting_enabled"),
+    AI_SEARCH_ENABLED                ("ai_search_enabled"),
+    AI_ORDER_MESSAGE_ENABLED         ("ai_order_message_enabled"),
+    FIRESTORE_WRITE_ENABLED          ("firestore_write_enabled"),
     SHOW_PROMOTIONS_BANNER      ("show_promotions_banner"),
+    VIEW_ITEM_LIST_ENABLED           ("view_item_list_enabled"),
     SEARCH_AUTOCOMPLETE         ("search_autocomplete_enabled"),
     WISHLIST_ENABLED            ("wishlist_enabled"),
-
-    // Kill Switches ───────────────────────────────────────────────────────────────────────────────
     PAYMENT_METHOD_COD_ENABLED       ("payment_method_cod_enabled"),
-    FIRESTORE_WRITE_ENABLED          ("firestore_write_enabled"),
-    AI_ORDER_MESSAGE_ENABLED         ("ai_order_message_enabled"),
-    AI_SEARCH_ENABLED                ("ai_search_enabled"),
-
-    // Feature Rollouts ────────────────────────────────────────────────────────────────────────────
-    AI_PRODUCT_SORTING_ENABLED       ("ai_product_sorting_enabled"),
+    REQUEST_REFUND_ENABLED           ("request_refund_enabled"),
 
     // Business Configuration Values ───────────────────────────────────────────────────────────────
-    CART_ITEM_LIMIT             ("cart_item_limit"),
-    FREE_SHIPPING_THRESHOLD_IDR ("free_shipping_threshold_idr"),
-    MINIMUM_ORDER_VALUE_IDR     ("minimum_order_value_idr"),
     MAX_SHIPPING_DAYS           ("max_shipping_days"),
 }

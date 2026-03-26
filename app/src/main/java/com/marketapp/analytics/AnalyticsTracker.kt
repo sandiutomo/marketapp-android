@@ -43,6 +43,13 @@ interface AnalyticsTracker {
     fun setAnalyticsConsent(enabled: Boolean) {}
 
     /**
+     * Called once after ACCESS_FINE_LOCATION is granted (and optionally
+     * ACCESS_BACKGROUND_LOCATION). Trackers that support geofences should
+     * start resolving the user's position here.
+     */
+    fun requestLocationInitialization() {}
+
+    /**
      * Called once after all trackers finish initializing, with a fresh session UUID.
      * Override in trackers that support super-properties or global event context.
      */

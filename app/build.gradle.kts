@@ -152,7 +152,9 @@ dependencies {
     implementation(libs.firebase.ai)
     implementation(libs.firebase.performance)
     implementation(libs.firebase.inappmessaging)
-    implementation(libs.play.services.auth)
+    implementation(libs.credentials)
+    implementation(libs.credentials.play.services)
+    implementation(libs.googleid)
     implementation(libs.play.services.appset)
     implementation(libs.play.services.ads.identifier)
 
@@ -163,6 +165,7 @@ dependencies {
     implementation(libs.appsflyer.install.referrer)
 
     implementation(libs.braze.android.sdk)
+    implementation(libs.braze.android.sdk.location)
     implementation(libs.onesignal)
 
     implementation(libs.amplitude)

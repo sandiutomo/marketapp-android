@@ -43,6 +43,7 @@ class ProductDetailViewModel @Inject constructor(
                         trace.putAttribute("product_id",       it.id.toString())
                         trace.putAttribute("product_category", it.category)
                         _product.value = UiState.Success(it)
+                        _isWishlisted.value = cartManager.isWishlisted(it.id)
                         // Fired here so screen_view (dispatched by OnDestinationChangedListener
                         // before onViewCreated) is always sent first.
                         analytics.track(
@@ -73,14 +74,15 @@ class ProductDetailViewModel @Inject constructor(
                 productName = product.title,
                 price = product.priceIdr,
                 quantity = 1,
-                category = product.category
+                category = product.category,
+                cartItemCount = cartManager.cart.value.items.sumOf { it.quantity }
             )
         )
     }
 
     fun toggleWishlist() {
         val product = (_product.value as? UiState.Success)?.data ?: return
-        val newState = !_isWishlisted.value
+        val newState = cartManager.toggleWishlist(product.id)
         _isWishlisted.value = newState
         analytics.track(
             AnalyticsEvent.ProductWishlisted(

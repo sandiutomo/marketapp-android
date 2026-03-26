@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Simplified PostHog logo — hedgehog silhouette (rounded body + spines) -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="16dp"
+    android:height="16dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+
+    <!-- Body -->
+    <path
+        android:fillColor="#F54E00"
+        android:pathData="M4,14A8,8,0,0,1,20,14L20,18Q20,21,17,21L7,21Q4,21,4,18Z" />
+
+    <!-- Spines on top -->
+    <path
+        android:fillColor="#F54E00"
+        android:pathData="M7,14L5,7L8,10L9,5L11,11L12,4L13,11L15,5L16,10L19,7L17,14Z" />
+
+    <!-- Eye -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M9,15.5A1,1,0,1,0,9,17.5A1,1,0,1,0,9,15.5Z" />
+
+</vector>

@@ -18,16 +18,16 @@ package com.marketapp.config
  */
 enum class FeatureGate(val key: String, val label: String, val category: Category) {
     // SDK Kill Switches ───────────────────────────────────────────────────────────────────────────
-    SDK_AMPLITUDE ("sdk_amplitude_enabled",  "Amplitude SDK",          Category.SDK),
-    SDK_FACEBOOK  ("sdk_facebook_enabled",   "Facebook SDK",           Category.SDK),
     SDK_FIREBASE  ("sdk_firebase_enabled",   "Firebase Analytics SDK", Category.SDK),
-    SDK_POSTHOG   ("sdk_posthog_enabled",    "PostHog SDK",            Category.SDK),
+    SDK_AMPLITUDE ("sdk_amplitude_enabled",  "Amplitude SDK",          Category.SDK),
     SDK_MIXPANEL  ("sdk_mixpanel_enabled",   "Mixpanel SDK",           Category.SDK),
-    SDK_APPSFLYER ("sdk_appsflyer_enabled",  "AppsFlyer SDK",          Category.SDK),
+    SDK_POSTHOG   ("sdk_posthog_enabled",    "PostHog SDK",            Category.SDK),
+    SDK_SEGMENT   ("sdk_segment_enabled",    "Segment SDK",            Category.SDK),
     SDK_CLARITY   ("sdk_clarity_enabled",    "Microsoft Clarity SDK",  Category.SDK),
     SDK_BRAZE     ("sdk_braze_enabled",      "Braze SDK",              Category.SDK),
     SDK_ONESIGNAL ("sdk_onesignal_enabled",  "OneSignal SDK",          Category.SDK),
-
+    SDK_APPSFLYER ("sdk_appsflyer_enabled",  "AppsFlyer SDK",          Category.SDK),
+    SDK_FACEBOOK  ("sdk_facebook_enabled",   "Facebook SDK",           Category.SDK),
     ;
 
     enum class Category { SDK, ROLLOUT }

@@ -4,6 +4,11 @@ import android.content.Context
 import android.util.Log
 import com.amplitude.experiment.Experiment
 import com.amplitude.experiment.ExperimentConfig
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import com.braze.models.FeatureFlag as BrazeFeatureFlag
 import com.google.firebase.crashlytics.ktx.crashlytics
 import com.google.firebase.ktx.Firebase
@@ -54,6 +59,10 @@ class ExperimentManager @Inject constructor(
     private val remoteConfigManager: RemoteConfigManager
 ) {
 
+    private val bgScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    @Volatile private var amplitudeFetchComplete = false
+    @Volatile private var amplitudeFetchListener: (() -> Unit)? = null
+
     /** Amplitude Experiment client — initialized lazily and linked to the Amplitude Analytics
      * instance so user identity is shared automatically.
      * */
@@ -75,8 +84,26 @@ class ExperimentManager @Inject constructor(
      * immediately via [getAmplitudeVariant].
      */
     fun initialize() {
-        runCatching { amplitudeExperiment.fetch(null) }
-            .onFailure { Log.w(TAG, "Amplitude Experiment fetch failed: ${it.message}") }
+        bgScope.launch {
+            runCatching { amplitudeExperiment.fetch(null).get() }
+                .onFailure { Log.w(TAG, "Amplitude Experiment fetch failed: ${it.message}") }
+            withContext(Dispatchers.Main) {
+                amplitudeFetchComplete = true
+                amplitudeFetchListener?.invoke()
+                amplitudeFetchListener = null
+            }
+        }
+    }
+
+    /**
+     * Invokes [action] on the main thread once the current Amplitude Experiment [fetch] completes.
+     * Use this to re-render UI that read a variant before the async fetch finished
+     * (common race on first launch — no cached value yet).
+     *
+     * The listener is cleared after it fires; re-register on each [onViewCreated] if needed.
+     */
+    fun doOnAmplitudeExperimentFetchComplete(action: () -> Unit) {
+        if (amplitudeFetchComplete) action() else amplitudeFetchListener = action
     }
 
     // Firebase Remote Config ──────────────────────────────────────────────────────────────────────

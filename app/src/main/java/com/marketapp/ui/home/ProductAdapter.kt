@@ -7,13 +7,23 @@ import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import coil.load
+import com.marketapp.R
 import com.marketapp.data.model.Product
 import com.marketapp.databinding.ItemProductCardBinding
 
 class ProductAdapter(
     private val isWishlistEnabled: () -> Boolean = { true },
+    private val onWishlistToggle: ((Product) -> Unit)? = null,
     private val onClick: (Product, Int) -> Unit
 ) : ListAdapter<Product, ProductAdapter.ViewHolder>(DIFF) {
+
+    var compact: Boolean = false
+    var wishlistedIds: Set<Int> = emptySet()
+
+    fun updateWishlistIds(ids: Set<Int>) {
+        wishlistedIds = ids
+        notifyItemRangeChanged(0, itemCount)
+    }
 
     inner class ViewHolder(private val binding: ItemProductCardBinding) :
         RecyclerView.ViewHolder(binding.root) {
@@ -24,6 +34,11 @@ class ProductAdapter(
             binding.tvPrice.text    = product.formattedPrice
             binding.tvRating.text   = "${product.rating.rate} (${product.rating.count})"
 
+            binding.tvPrice.setTextAppearance(
+                if (compact) R.style.TextAppearance_MarketApp_Callout
+                else         R.style.TextAppearance_MarketApp_Title3
+            )
+
             binding.imgProduct.load(product.image) {
                 crossfade(200)
                 allowHardware(true)
@@ -32,7 +47,15 @@ class ProductAdapter(
             }
 
             // Re-read on every bind so RC fetch completing mid-session takes effect.
-            binding.btnWishlist.isVisible = isWishlistEnabled()
+            val wishlistVisible = isWishlistEnabled()
+            binding.btnWishlist.isVisible = wishlistVisible
+            if (wishlistVisible) {
+                binding.btnWishlist.setImageResource(
+                    if (wishlistedIds.contains(product.id)) R.drawable.ic_heart_filled
+                    else R.drawable.ic_heart
+                )
+                binding.btnWishlist.setOnClickListener { onWishlistToggle?.invoke(product) }
+            }
 
             binding.root.setOnClickListener { onClick(product, position) }
         }

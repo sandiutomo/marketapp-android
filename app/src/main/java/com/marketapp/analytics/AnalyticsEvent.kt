@@ -117,7 +117,8 @@ sealed class AnalyticsEvent(val name: String) {
         val productName: String,
         val price: Double,
         val quantity: Int,
-        val category: String
+        val category: String,
+        val cartItemCount: Int
     ) : AnalyticsEvent("add_to_cart")
 
     // GA4: remove_from_cart
@@ -125,7 +126,8 @@ sealed class AnalyticsEvent(val name: String) {
         val productId: String,
         val productName: String,
         val price: Double,
-        val quantity: Int
+        val quantity: Int,
+        val cartItemCount: Int
     ) : AnalyticsEvent("remove_from_cart")
 
     // GA4: view_cart
@@ -223,6 +225,14 @@ sealed class AnalyticsEvent(val name: String) {
     object TriggerBannerTest      : AnalyticsEvent("trigger_for_banner")
     object TriggerInAppTest       : AnalyticsEvent("trigger_for_inapp")
     object TriggerContentCardTest : AnalyticsEvent("trigger_for_content_card")
+    object TriggerAmplitudeGuide  : AnalyticsEvent("trigger_for_amplitude_guide")
+
+    /** Only meaningful to Braze (action-based campaigns). All other trackers skip these. */
+    val isBrazeOnly: Boolean get() = this is TriggerPushTest || this is TriggerBannerTest ||
+        this is TriggerInAppTest || this is TriggerContentCardTest
+
+    /** Only meaningful to Amplitude Guides/Surveys. All other trackers skip this. */
+    val isAmplitudeOnly: Boolean get() = this is TriggerAmplitudeGuide
 
     /**
      * Flat property map for PostHog, Clarity, and generic trackers.
@@ -390,7 +400,8 @@ sealed class AnalyticsEvent(val name: String) {
         is TriggerPushTest,
         is TriggerBannerTest,
         is TriggerInAppTest,
-        is TriggerContentCardTest -> emptyMap()
+        is TriggerContentCardTest,
+        is TriggerAmplitudeGuide  -> emptyMap()
     }
 }
 
