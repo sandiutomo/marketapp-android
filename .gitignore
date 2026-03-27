@@ -24,3 +24,6 @@ docs/
 
 # Firebase CLI local cache
 .firebase/
+
+# Assets folder
+assets/

@@ -13,9 +13,9 @@ A sample Android e-commerce app that showcases **multiple most popular analytics
 
 **What makes this valuable:** A complete learning project that demonstrates how professional teams use the industry's leading analytics, CRM, push, and feature flagging platforms together in real applications. See how they work side-by-side without building everything from scratch.
 
----
 
 ## What You Get
+
 ![Firebase](https://img.shields.io/badge/Firebase-BOM%2033.14-FFCA28?style=flat-square&logo=firebase&logoColor=black)
 ![Amplitude](https://img.shields.io/badge/Amplitude-1.26-0078FF?style=flat-square)
 ![Mixpanel](https://img.shields.io/badge/Mixpanel-8.3-7856FF?style=flat-square)
@@ -28,16 +28,29 @@ A sample Android e-commerce app that showcases **multiple most popular analytics
 ![Statsig](https://img.shields.io/badge/Statsig-4.41-194BFB?style=flat-square)
 ![Clarity](https://img.shields.io/badge/Microsoft%20Clarity-3.8-00A4EF?style=flat-square&logo=microsoft&logoColor=white)
 
+<table>
+<tr>
+<td width="40%">
+
+<img src="https://media1.giphy.com/media/v1.Y2lkPTc5MGI3NjExZmd6NnA5ankwazFzaWZwOXlnYXBoYmZjNjFpMzBrZWJrZmZ3YWdzcSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/Dxi7HeNbvFmxvDnH6L/giphy.gif" width="100%" />
+
+</td>
+<td width="60%">
+
+<br/>
+
 | Feature | Benefit |
 |---|---|
 | **One-command analytics** | Call `track()` once, 11 SDKs fire automatically |
-| **Session replay** | Watch user behavior across Amplitude, Mixpanel, PostHog, Clarity |
-| **Feature flags** | Control features without releasing new versions |
-| **Deep links & attribution** | Track where users come from (push, email, social, organic) |
-| **GDPR consent** | Toggle all tracking on/off with one tap |
-| **Debug panel** | See SDK status and feature flags live in the app |
+| **Session replay** | Watch user behavior across tools |
+| **Feature flags** | Control features without releasing |
+| **Deep links & attribution** | Track user sources |
+| **GDPR consent** | Toggle tracking easily |
+| **Debug panel** | See SDK status live |
 
----
+</td>
+</tr>
+</table>
 
 ## Quick Start (5 minutes)
 
@@ -70,12 +83,11 @@ Cloning into 'MarketApp'...
 All analytics platforms require credentials.
 
 1. **Find the template file:**
-    - Open the folder you just cloned (called `MarketApp`)
-    - Look for `local.properties.example`
+   - Open the folder you just cloned (called `MarketApp`)
+   - Look for `local.properties.example`
 
 2. **Create your own keys file:**
-    - Duplicate `local.properties.example` and rename it to `local.properties`
-    - This file stays on your machine — never uploaded to GitHub
+   - Duplicate `local.properties.example` and rename it to `local.properties`
 
 3. **Fill in your credentials:**
    Open `local.properties` in any text editor and add:
@@ -94,15 +106,15 @@ All analytics platforms require credentials.
 
 1. **Download Android Studio** (if you don't have it): [android.com/studio](https://developer.android.com/studio)
 2. **Open the project:**
-    - Launch Android Studio
-    - Click **File → Open** (or **Open an Existing Project**)
-    - Select the `MarketApp` folder
-    - Wait for it to load (2-3 minutes first time)
+   - Launch Android Studio
+   - Click **File → Open** (or **Open an Existing Project**)
+   - Select the `MarketApp` folder
+   - Wait for it to load (2-3 minutes first time)
 
 3. **Let it build:**
-    - You'll see a "Gradle sync" message at the bottom
-    - Let it complete (grab coffee ☕)
-    - Once it says "Build Successful" — you're ready
+   - You'll see a "Gradle sync" message at the bottom
+   - Let it complete (grab coffee ☕)
+   - Once it says "Build Successful" — you're ready
 
 ---
 
@@ -116,7 +128,7 @@ All analytics platforms require credentials.
 **Using your phone (more fun):**
 1. Connect your Android phone via USB cable
 2. Enable "Developer Mode" on your phone
-    - Go to Settings → About → tap "Build Number" 7 times
+   - Go to Settings → About → tap "Build Number" 7 times
 3. Click the **Play** button in Android Studio
 4. Select your phone from the list
 5. Wait for the app to install
